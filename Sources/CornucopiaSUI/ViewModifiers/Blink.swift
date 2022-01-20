@@ -1,8 +1,5 @@
 //
-//  ContentView.swift
-//  Shared
-//
-//  Created by Dr. Michael Lauer on 20.01.22.
+//  Cornucopia – (C) Dr. Lauer Information Technology
 //
 import Combine
 import SwiftUI
@@ -62,7 +59,6 @@ public struct Blink: ViewModifier {
     }
 }
 
-
 extension View {
     /// Lets the content blink in the desired `style`. Every blink phase has the given `duration` and repeats for `repeatCount` times. Use `Int.max` for "forever".
     func CC_blinking(style: Blink.Style = .hard, duration: TimeInterval = 1.0, repeatCount: Int = Int.max) -> some View {
@@ -70,7 +66,7 @@ extension View {
     }
 }
 
-//MARK:- Testing
+//MARK: - Testing
 struct BlinkView: View {
 
     var body: some View {
@@ -90,4 +86,3 @@ struct Blink_Previews: PreviewProvider {
         BlinkView()
     }
 }
-
