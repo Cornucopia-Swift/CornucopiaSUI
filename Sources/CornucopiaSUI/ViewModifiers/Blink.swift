@@ -61,7 +61,7 @@ public struct Blink: ViewModifier {
 
 extension View {
     /// Lets the content blink in the desired `style`. Every blink phase has the given `duration` and repeats for `repeatCount` times. Use `Int.max` for "forever".
-    func CC_blinking(style: Blink.Style = .hard, duration: TimeInterval = 1.0, repeatCount: Int = Int.max) -> some View {
+    public func CC_blinking(style: Blink.Style = .hard, duration: TimeInterval = 1.0, repeatCount: Int = Int.max) -> some View {
         modifier(Blink(style: style, duration: duration, repeatCount: repeatCount))
     }
 }

@@ -22,7 +22,6 @@ public struct OnFirstAppear: ViewModifier {
 }
 
 extension View {
-
     /// Executes the closure when the view first appears.
     public func CC_onFirstAppear(perform: @escaping () -> Void ) -> some View {
         self.modifier(OnFirstAppear(perform: perform))
