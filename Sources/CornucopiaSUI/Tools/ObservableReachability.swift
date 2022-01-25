@@ -1,0 +1,31 @@
+//
+//  File.swift
+//  
+//
+//  Created by Dr. Michael Lauer on 25.01.22.
+//
+
+import Foundation
+import Network
+
+public class ObservableReachability: ObservableObject {
+
+    let monitor: NWPathMonitor = .init()
+    let queue: DispatchQueue = .global(qos: .background)
+
+    @Published public private(set) var isConnected: Bool = false
+
+    public init() {
+        monitor.pathUpdateHandler = { path in
+
+            switch path.status {
+                case .satisfied:
+                    DispatchQueue.main.async { self.isConnected = true }
+
+                default:
+                    DispatchQueue.main.async { self.isConnected = false }
+            }
+        }
+        monitor.start(queue: queue)
+    }
+}
