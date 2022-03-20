@@ -1,10 +1,6 @@
 //
-//  File.swift
-//  
+//  Cornucopia – (C) Dr. Lauer Information Technology
 //
-//  Created by Dr. Michael Lauer on 25.01.22.
-//
-
 import Foundation
 import Network
 
