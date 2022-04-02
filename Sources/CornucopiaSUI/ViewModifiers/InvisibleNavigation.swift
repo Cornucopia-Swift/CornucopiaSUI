@@ -26,3 +26,7 @@ extension View {
         modifier(InvisibleNavigationLink(destination: destination))
     }
 }
+
+//MARK: - Example
+
+//… tbd

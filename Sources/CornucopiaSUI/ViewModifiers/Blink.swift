@@ -66,8 +66,8 @@ extension View {
     }
 }
 
-//MARK: - Testing
-struct BlinkView: View {
+//MARK: - Example
+fileprivate struct BlinkView: View {
 
     var body: some View {
         VStack {
