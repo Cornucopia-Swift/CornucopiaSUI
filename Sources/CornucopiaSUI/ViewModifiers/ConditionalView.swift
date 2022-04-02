@@ -4,15 +4,15 @@
 import SwiftUI
 
 /// A conditional view, e.g., for an empty state.
-struct ConditionalEmptyView<EmptyViewType: View>: ViewModifier {
+struct ConditionalView<ViewType: View>: ViewModifier {
 
     let condition: Bool
 
-    @ViewBuilder let emptyView: () -> EmptyViewType
+    @ViewBuilder let conditionalView: () -> ViewType
 
     func body(content: Content) -> some View {
         if condition {
-            emptyView()
+            conditionalView()
         } else {
             content
         }
@@ -20,8 +20,9 @@ struct ConditionalEmptyView<EmptyViewType: View>: ViewModifier {
 }
 
 extension View {
-    func CC_onEmpty<EmptyViewType: View>(for condition: Bool, @ViewBuilder emptyView: @escaping ()->EmptyViewType) -> some View {
-        self.modifier(ConditionalEmptyView(condition: condition, emptyView: emptyView))
+    /// Shows a dedicated view, if the `condition` applies. Use it for, e.g., an empty state.
+    public func CC_onCondition<ConditionalViewType: View>(_ condition: Bool, @ViewBuilder conditionalView: @escaping ()->ConditionalViewType) -> some View {
+        self.modifier(ConditionalView(condition: condition, conditionalView: conditionalView))
     }
 }
 
@@ -36,7 +37,7 @@ fileprivate struct ExampleView: View {
             List(objects, id: \.self) { obj in
                 Text("\(obj)")
             }
-            .CC_onEmpty(for: objects.isEmpty) {
+            .CC_onCondition(objects.isEmpty) {
                 Text("Sorry, no data yet")
                     .font(.title)
                     .foregroundColor(.secondary)
