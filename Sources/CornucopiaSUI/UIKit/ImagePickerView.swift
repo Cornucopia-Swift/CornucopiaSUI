@@ -1,6 +1,7 @@
 //
 //  Cornucopia – (C) Dr. Lauer Information Technology
 //
+#if canImport(UIKit)
 import UIKit
 import SwiftUI
 
@@ -57,3 +58,5 @@ extension ImagePickerView {
         }
     }
 }
+#endif
+
