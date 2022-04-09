@@ -15,23 +15,33 @@ public struct BusyButton: View {
     public var body: some View {
 
         ZStack {
-            Button(action: {
-                self.isBusy = true
-                Task {
-                    defer { DispatchQueue.main.async { self.isBusy = false} }
-                    try await self.action()
-                }
-            }) {
-                Text(title)
-                    .opacity(isBusy ? 0 : 1)
+
+            if self.isBusy {
+                button
+                    .clipShape(Circle())
+            } else {
+                button
             }
-            .disabled(isBusy)
 
             ProgressView()
                 .opacity(isBusy ? 1 : 0)
                 .saturation(-1)
         }
         .animation(.easeInOut, value: isBusy)
+    }
+
+    public var button: some View {
+        Button(action: {
+            self.isBusy = true
+            Task {
+                defer { DispatchQueue.main.async { self.isBusy = false} }
+                try await self.action()
+            }
+        }) {
+            Text(title)
+                .opacity(isBusy ? 0 : 1)
+        }
+        .disabled(isBusy)
     }
 
     public init(isBusy: Binding<Bool>, title: String, action: @escaping ActionFunc) {
