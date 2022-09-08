@@ -4,7 +4,7 @@
 import SwiftUI
 
 /// A conditional view, e.g., for an empty state.
-struct ConditionalView<ViewType: View>: ViewModifier {
+struct ConditionalViewModifier<ViewType: View>: ViewModifier {
 
     let condition: Bool
 
@@ -22,7 +22,7 @@ struct ConditionalView<ViewType: View>: ViewModifier {
 extension View {
     /// Shows a dedicated view, if the `condition` applies. Use it for, e.g., an empty state.
     public func CC_onCondition<ConditionalViewType: View>(_ condition: Bool, @ViewBuilder conditionalView: @escaping ()->ConditionalViewType) -> some View {
-        self.modifier(ConditionalView(condition: condition, conditionalView: conditionalView))
+        self.modifier(ConditionalViewModifier(condition: condition, conditionalView: conditionalView))
     }
 }
 
@@ -56,7 +56,7 @@ fileprivate struct ExampleView: View {
     }
 }
 
-struct ExampleView_Previews: PreviewProvider {
+struct ConditionalViewExampleView_Previews: PreviewProvider {
     static var previews: some View {
         ExampleView()
     }
