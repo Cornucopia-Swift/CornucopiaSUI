@@ -27,7 +27,6 @@ extension View {
 }
 
 //MARK: - Example
-
 fileprivate struct ExampleView: View {
 
     @State var objects: [Int] = []
@@ -49,7 +48,7 @@ fileprivate struct ExampleView: View {
                     }
                     Button("Remove") {
                         objects.removeLast()
-                    }
+                    }.disabled(objects.isEmpty)
                 }
             }
         }
