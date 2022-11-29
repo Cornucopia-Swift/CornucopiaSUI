@@ -6,8 +6,8 @@ import SwiftUI
 public extension View {
 
     func CC_debugPrinting(_ value: Any) -> some View {
-#if DEBUG
         print(value)
+#if DEBUG
         return self
 #endif
     }
