@@ -25,7 +25,7 @@ extension View {
         self.modifier(ConditionalViewModifier(condition: condition, conditionalView: conditionalView))
     }
 }
-
+#if DEBUG
 //MARK: - Example
 fileprivate struct ExampleView: View {
 
@@ -60,3 +60,4 @@ struct ConditionalViewExampleView_Previews: PreviewProvider {
         ExampleView()
     }
 }
+#endif

@@ -46,7 +46,7 @@ extension View {
         )
     }
 }
-
+#if DEBUG
 //MARK: - Example
 fileprivate struct ExampleView: View {
 
@@ -79,5 +79,6 @@ struct DebouncedTaskExampleView_Previews: PreviewProvider {
         ExampleView()
     }
 }
+#endif
 
 #endif

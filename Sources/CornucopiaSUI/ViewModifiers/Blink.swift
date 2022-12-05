@@ -65,7 +65,7 @@ extension View {
         modifier(Blink(style: style, duration: duration, repeatCount: repeatCount))
     }
 }
-
+#if DEBUG
 //MARK: - Example
 fileprivate struct BlinkView: View {
 
@@ -86,3 +86,4 @@ struct Blink_Previews: PreviewProvider {
         BlinkView()
     }
 }
+#endif

@@ -52,6 +52,7 @@ public struct BusyButton: View {
 }
 
 //MARK: - Example
+#if DEBUG
 private struct BusyButtonExample: View {
 
     @State private var isBusy: Bool = false
@@ -77,3 +78,4 @@ struct BusyButton_Previews: PreviewProvider {
         BusyButtonExample()
     }
 }
+#endif
