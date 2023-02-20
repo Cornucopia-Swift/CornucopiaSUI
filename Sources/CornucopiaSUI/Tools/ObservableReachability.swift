@@ -1,7 +1,7 @@
 //
 //  Cornucopia – (C) Dr. Lauer Information Technology
 //
-import Foundation
+import Combine
 import Network
 
 public class ObservableReachability: ObservableObject {
