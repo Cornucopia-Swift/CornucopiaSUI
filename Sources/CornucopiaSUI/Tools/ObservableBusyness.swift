@@ -10,14 +10,14 @@ public final class ObservableBusyness: ObservableObject, Cornucopia.Core.Busynes
 
     private let debounceInterval: DispatchTimeInterval
 
-    @Published var busy: Bool = false
+    @Published public var isBusy: Bool = false
 
     var newWorkItem: DispatchWorkItem {
         DispatchWorkItem() { [weak self] in
             guard let self else { return }
             let newBusy = self.numberOfRequests > 0
-            guard newBusy != busy else { return }
-            self.busy = newBusy
+            guard newBusy != self.isBusy else { return }
+            self.isBusy = newBusy
         }
     }
     @Cornucopia.Core.Protected
