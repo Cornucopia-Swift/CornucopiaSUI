@@ -32,7 +32,9 @@ public struct BusyButton: View {
 
     public var button: some View {
         Button(action: {
-            self.isBusy = true
+            withAnimation {
+                self.isBusy = true
+            }
             Task {
                 defer { DispatchQueue.main.async { self.isBusy = false} }
                 try await self.action()
@@ -40,6 +42,7 @@ public struct BusyButton: View {
         }) {
             Text(title)
                 .opacity(isBusy ? 0 : 1)
+                .frame(maxWidth: .infinity)
         }
         .disabled(isBusy)
     }
