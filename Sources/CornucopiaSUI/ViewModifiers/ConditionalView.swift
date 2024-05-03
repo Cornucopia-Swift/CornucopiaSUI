@@ -42,7 +42,12 @@ fileprivate struct ExampleView: View {
                     .foregroundColor(.secondary)
             }
             .toolbar {
-                ToolbarItemGroup(placement: .navigationBarTrailing) {
+#if os(macOS)
+                let placement = ToolbarItemPlacement.navigation
+#else
+                let placement = ToolbarItemPlacement.navigationBarTrailing
+#endif
+                ToolbarItemGroup(placement: placement) {
                     Button("Add") {
                         objects.append(objects.count)
                     }

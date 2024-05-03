@@ -3,7 +3,7 @@
 //
 import SwiftUI
 
-#if os(iOS) || os(tvOS) || os(watchOS)
+#if canImport(UIKit)
 import UIKit
 
 extension Image {
@@ -13,14 +13,16 @@ extension Image {
         return Image(uiImage: uiImage)
     }
 }
-#elseif os(macOS)
+#endif
+
+#if canImport(AppKit)
 import AppKit
 
 extension Image {
 
     public static func CC_fromData(_ data: Data) -> Self {
         let nsImage = NSImage(data: data) ?? NSImage()
-        return Image(nsImage: uiImage)
+        return Image(nsImage: nsImage)
     }
 }
 #endif

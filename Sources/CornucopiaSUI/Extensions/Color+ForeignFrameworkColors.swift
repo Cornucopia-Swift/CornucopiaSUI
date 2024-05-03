@@ -26,6 +26,7 @@ public extension Color {
 
     static var primaryBackground: Color { Color(.textBackgroundColor) }
     static var tertiary: Color { Color(.tertiaryLabelColor) }
+    static var separatorColor: Color { Color(.tertiaryLabelColor) }
 
 }
 #endif
