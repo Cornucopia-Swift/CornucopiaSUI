@@ -1,5 +1,4 @@
-// swift-tools-version:5.5
-// The swift-tools-version declares the minimum version of Swift required to build this package.
+// swift-tools-version:5.10
 
 import PackageDescription
 
@@ -14,7 +13,8 @@ let package = Package(
     products: [
         .library(
             name: "CornucopiaSUI",
-            targets: ["CornucopiaSUI"]),
+            targets: ["CornucopiaSUI"]
+        ),
     ],
     dependencies: [
         .package(url: "https://github.com/Cornucopia-Swift/CornucopiaCore", branch: "master"),
@@ -28,6 +28,7 @@ let package = Package(
         ),
         .testTarget(
             name: "CornucopiaSUITests",
-            dependencies: ["CornucopiaSUI"]),
+            dependencies: ["CornucopiaSUI"]
+        ),
     ]
 )
