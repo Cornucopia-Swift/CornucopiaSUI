@@ -5,7 +5,8 @@
 #if canImport(UIKit)
 import UIKit
 
-extension UIApplication.State: CustomStringConvertible {
+extension UIApplication.State: @retroactive CustomStringConvertible {
+    /// A friendly description for the application state enum.
     public var description: String {
         switch self {
             case .active: "Active"
