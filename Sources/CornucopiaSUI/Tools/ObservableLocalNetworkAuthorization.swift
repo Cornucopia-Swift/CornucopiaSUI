@@ -21,7 +21,7 @@ import OSLog
 /// before transitioning afterwards into one of the three other states. Then again, I usually don't like
 /// to hard code timings in such a way, so it might be better to fix this in your UI layer. Please give feedback,
 /// if you have an opinion on that.
-public class ObservableLocalNetworkAuthorization: NSObject, ObservableObject, NetServiceDelegate {
+public final class ObservableLocalNetworkAuthorization: NSObject, ObservableObject, NetServiceDelegate {
 
     public enum Status {
 
