@@ -3,6 +3,9 @@
 //
 import Combine
 import Network
+import CornucopiaCore
+
+private let logger = Cornucopia.Core.Logger()
 
 /// An observable reachability provider.
 public final class ObservableReachability: ObservableObject {
@@ -13,26 +16,24 @@ public final class ObservableReachability: ObservableObject {
 
     static public let shared: ObservableReachability = .init()
     @Published public private(set) var isConnected: Bool = false
-    @Published public private(set) var currentPath: NWPath? = nil
+    @Published public private(set) var currentPath: NWPath? = nil  {
+        didSet {
+            guard let path = self.currentPath else { return }
+            self.isConnected = path.status == .satisfied
+            switch path.status {
+                case .satisfied:
+                    logger.trace("Path satisfied via \(path.availableInterfaces), gateways: \(path.gateways)")
+
+                default:
+                    logger.trace("Path NOT satisfied.")
+            }
+        }
+    }
 
     private init() {
         self.monitor.pathUpdateHandler = { [weak self] path in
-
             guard let self else { return }
-
-            switch path.status {
-                case .satisfied:
-                    DispatchQueue.main.async {
-                        self.currentPath = path
-                        self.isConnected = true
-                    }
-
-                default:
-                    DispatchQueue.main.async {
-                        self.currentPath = nil
-                        self.isConnected = false
-                    }
-            }
+            DispatchQueue.main.async { self.currentPath = path }
         }
         self.monitor.start(queue: queue)
     }
