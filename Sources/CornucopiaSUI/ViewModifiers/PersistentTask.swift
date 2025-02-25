@@ -29,13 +29,13 @@ class TaskViewModel: ObservableObject {
     var task: Task<Void, Never>?
 
     init(action: @escaping @Sendable () async -> Void) {
-        task = Task {
+        self.task = Task {
             await action()
         }
     }
 
     deinit {
-        task?.cancel()
+        self.task?.cancel()
     }
 }
 
