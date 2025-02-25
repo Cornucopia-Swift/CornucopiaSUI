@@ -37,16 +37,7 @@ public final class NavigationController: ObservableObject {
     }
 }
 
-extension NavigationController {
-    struct Key: EnvironmentKey {
-        static let defaultValue: NavigationController? = nil
-    }
-}
-
+/// Allow instances of NavigationController to be shared via the Environment
 public extension EnvironmentValues {
-
-    var CC_navigationController: NavigationController? {
-        get { self[NavigationController.Key.self] }
-        set { self[NavigationController.Key.self] = newValue }
-    }
+    @Entry var CC_navigationController: NavigationController? = nil
 }
