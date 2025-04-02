@@ -1,10 +1,11 @@
 //
 //  Cornucopia – (C) Dr. Lauer Information Technology
 //
-import Combine
+import CornucopiaCore
 import Foundation
 import Network
-import OSLog
+
+private let logger = Cornucopia.Core.Logger()
 
 /// Observes the local network authorization.
 /// Inspired by discussions and solutions at https://stackoverflow.com/questions/63940427/ios-14-how-to-trigger-local-network-dialog-and-check-user-answer
@@ -23,6 +24,8 @@ import OSLog
 /// if you have an opinion on that.
 public final class ObservableLocalNetworkAuthorization: NSObject, ObservableObject, NetServiceDelegate {
 
+    static public let shared: ObservableLocalNetworkAuthorization = .init()
+
     public enum Status {
 
         case notDetermined
@@ -32,9 +35,7 @@ public final class ObservableLocalNetworkAuthorization: NSObject, ObservableObje
 
     @Published public private(set) var status: Status = .notDetermined {
         didSet {
-#if DEBUG
-            print("LNA status now \(status)")
-#endif
+            logger.trace("LNA status now \(status)")
             switch status {
                 case .granted:
                     self.shutdown()
@@ -47,7 +48,7 @@ public final class ObservableLocalNetworkAuthorization: NSObject, ObservableObje
     private var browser: NWBrowser? = nil
     private var service: NetService? = nil
 
-    public override init() {
+    private override init() {
         super.init()
 
         let service = NetService(domain: "local.", type:"_lnp._tcp.", name: "ObservableLocalNetworkAuthorization", port: 7891)
@@ -59,7 +60,7 @@ public final class ObservableLocalNetworkAuthorization: NSObject, ObservableObje
         let browser = NWBrowser(for: .bonjour(type: "_bonjour._tcp", domain: nil), using: parameters)
 
         browser.stateUpdateHandler = { [weak self] state in
-            os_log("NWBrowser status update: %@", log: OSLog.default, type: .debug, "\(state)")
+            logger.trace("NWBrowser status update: \(state)")
             guard let self else { return }
             switch state {
                 case .failed(_):
@@ -76,12 +77,12 @@ public final class ObservableLocalNetworkAuthorization: NSObject, ObservableObje
     }
 
     public func netServiceDidPublish(_ sender: NetService) {
-        os_log("NetService did publish", log: OSLog.default, type: .debug)
+        logger.trace("NetService did publish: \(sender)")
         self.status = .granted
     }
 
     public func netService(_ sender: NetService, didNotPublish errorDict: [String : NSNumber]) {
-        os_log("NetService did not publish: %s", log: OSLog.default, type: .debug, errorDict.description)
+        logger.trace("NetService did not publish: \(errorDict.description)")
     }
 
     private func shutdown() {
