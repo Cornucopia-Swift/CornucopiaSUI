@@ -42,7 +42,8 @@ public struct BusyButton: View {
         }) {
             Text(title)
                 .opacity(isBusy ? 0 : 1)
-                .frame(maxWidth: .infinity)
+                //NOTE: This used to be here, but it limits the flexibility of the button, so I have removed it. Please apply this modifier in your code, if you need it.
+                //.frame(maxWidth: .infinity)
         }
         .disabled(isBusy)
     }
