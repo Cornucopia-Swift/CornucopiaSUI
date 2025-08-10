@@ -6,14 +6,22 @@ import SwiftUI
 /// A view modifier that runs a task in the background while the view is "alive".
 /// In contrast to the `Task` view modifier, this one does not cancel the task when the view is removed from the view hierarchy, but rather when it is being deallocated.
 struct PersistentTaskModifier: ViewModifier {
-    @StateObject private var viewModel: TaskViewModel
+    let action: @Sendable () async -> Void
+    @State private var task: Task<Void, Never>?
 
     init(action: @escaping @Sendable () async -> Void) {
-        _viewModel = StateObject(wrappedValue: TaskViewModel(action: action))
+        self.action = action
     }
 
     func body(content: Content) -> some View {
         content
+            .onAppear {
+                if task == nil {
+                    task = Task {
+                        await action()
+                    }
+                }
+            }
     }
 }
 
