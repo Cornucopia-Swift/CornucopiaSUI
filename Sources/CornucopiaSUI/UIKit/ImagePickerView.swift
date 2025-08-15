@@ -58,5 +58,45 @@ extension ImagePickerView {
         }
     }
 }
+
+#if DEBUG
+#Preview {
+    struct ImagePickerExample: View {
+        @State private var showImagePicker = false
+        @State private var selectedImage = UIImage()
+        
+        var body: some View {
+            VStack {
+                if selectedImage.size.width > 0 {
+                    Image(uiImage: selectedImage)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(height: 300)
+                        .padding()
+                } else {
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(height: 300)
+                        .overlay {
+                            Text("No Image Selected")
+                                .foregroundColor(.gray)
+                        }
+                        .padding()
+                }
+                
+                Button("Select Image") {
+                    showImagePicker = true
+                }
+                .buttonStyle(.borderedProminent)
+                .sheet(isPresented: $showImagePicker) {
+                    ImagePickerView(selectedImage: $selectedImage)
+                }
+            }
+        }
+    }
+    
+    return ImagePickerExample()
+}
+#endif
 #endif
 

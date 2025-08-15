@@ -66,24 +66,222 @@ extension View {
     }
 }
 #if DEBUG
-//MARK: - Example
-fileprivate struct BlinkView: View {
-
-    var body: some View {
-        VStack {
-            Text("Soft Blinking")
+#Preview("Blink - Comprehensive") {
+    struct BlinkShowcase: View {
+        @State private var isBlinking = true
+        @State private var customRepeatCount = 5
+        
+        var body: some View {
+            ScrollView {
+                VStack(spacing: 30) {
+                    Text("Blink Modifier Showcase")
+                        .font(.largeTitle)
+                        .padding(.bottom)
+                    
+                    Toggle("Enable Blinking", isOn: $isBlinking)
+                        .padding(.horizontal)
+                    
+                    if isBlinking {
+                        // Soft vs Hard blinking
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Blinking Styles")
+                                .font(.headline)
+                            
+                            HStack(spacing: 30) {
+                                VStack {
+                                    Text("Soft Blink")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    Text("Smooth")
+                                        .padding()
+                                        .background(Color.blue.opacity(0.2))
+                                        .cornerRadius(8)
+                                        .CC_blinking(style: .soft, duration: 1.0)
+                                }
+                                
+                                VStack {
+                                    Text("Hard Blink")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    Text("Instant")
+                                        .padding()
+                                        .background(Color.green.opacity(0.2))
+                                        .cornerRadius(8)
+                                        .CC_blinking(style: .hard, duration: 1.0)
+                                }
+                            }
+                        }
+                        
+                        // Different durations
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Duration Variations")
+                                .font(.headline)
+                            
+                            HStack(spacing: 20) {
+                                VStack {
+                                    Text("0.3s")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    Circle()
+                                        .fill(Color.orange)
+                                        .frame(width: 50, height: 50)
+                                        .CC_blinking(style: .soft, duration: 0.3)
+                                }
+                                
+                                VStack {
+                                    Text("0.7s")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    Circle()
+                                        .fill(Color.purple)
+                                        .frame(width: 50, height: 50)
+                                        .CC_blinking(style: .soft, duration: 0.7)
+                                }
+                                
+                                VStack {
+                                    Text("1.5s")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    Circle()
+                                        .fill(Color.red)
+                                        .frame(width: 50, height: 50)
+                                        .CC_blinking(style: .soft, duration: 1.5)
+                                }
+                                
+                                VStack {
+                                    Text("3.0s")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    Circle()
+                                        .fill(Color.indigo)
+                                        .frame(width: 50, height: 50)
+                                        .CC_blinking(style: .soft, duration: 3.0)
+                                }
+                            }
+                        }
+                        
+                        // Repeat count examples
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Repeat Count")
+                                .font(.headline)
+                            
+                            VStack(spacing: 15) {
+                                HStack {
+                                    Text("3 times:")
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(Color.teal.opacity(0.3))
+                                        .frame(width: 150, height: 40)
+                                        .overlay {
+                                            Text("Limited")
+                                                .foregroundColor(.white)
+                                        }
+                                        .CC_blinking(style: .soft, duration: 0.5, repeatCount: 3)
+                                }
+                                
+                                HStack {
+                                    Text("Custom (\(customRepeatCount) times):")
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(Color.mint.opacity(0.3))
+                                        .frame(width: 150, height: 40)
+                                        .overlay {
+                                            Text("Adjustable")
+                                                .foregroundColor(.white)
+                                        }
+                                        .CC_blinking(style: .soft, duration: 0.5, repeatCount: customRepeatCount)
+                                }
+                                
+                                Stepper("Repeat Count: \(customRepeatCount)", value: $customRepeatCount, in: 1...10)
+                                    .padding(.horizontal)
+                                
+                                HStack {
+                                    Text("Forever:")
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(Color.cyan.opacity(0.3))
+                                        .frame(width: 150, height: 40)
+                                        .overlay {
+                                            Text("Infinite")
+                                                .foregroundColor(.white)
+                                        }
+                                        .CC_blinking(style: .soft, duration: 1.0, repeatCount: Int.max)
+                                }
+                            }
+                        }
+                        
+                        // Practical examples
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Practical Examples")
+                                .font(.headline)
+                            
+                            VStack(spacing: 20) {
+                                // Alert indicator
+                                HStack {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .foregroundColor(.orange)
+                                        .font(.title2)
+                                        .CC_blinking(style: .hard, duration: 0.8)
+                                    Text("Warning: Low Battery")
+                                        .font(.callout)
+                                }
+                                .padding()
+                                .background(Color.orange.opacity(0.1))
+                                .cornerRadius(8)
+                                
+                                // Recording indicator
+                                HStack {
+                                    Circle()
+                                        .fill(Color.red)
+                                        .frame(width: 12, height: 12)
+                                        .CC_blinking(style: .soft, duration: 1.0)
+                                    Text("Recording...")
+                                        .font(.callout)
+                                }
+                                .padding()
+                                .background(Color.red.opacity(0.1))
+                                .cornerRadius(8)
+                                
+                                // Loading state
+                                Text("Processing...")
+                                    .font(.headline)
+                                    .padding()
+                                    .background(Color.blue.opacity(0.2))
+                                    .cornerRadius(8)
+                                    .CC_blinking(style: .soft, duration: 1.5)
+                            }
+                        }
+                        
+                        // Complex view blinking
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Complex View Blinking")
+                                .font(.headline)
+                            
+                            VStack(spacing: 10) {
+                                Image(systemName: "star.fill")
+                                    .font(.largeTitle)
+                                    .foregroundColor(.yellow)
+                                Text("Achievement Unlocked!")
+                                    .font(.headline)
+                                Text("You've reached 100 points")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding()
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color.yellow.opacity(0.2))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.yellow, lineWidth: 2)
+                                    )
+                            )
+                            .CC_blinking(style: .soft, duration: 0.8, repeatCount: 5)
+                        }
+                    }
+                }
                 .padding()
-                .CC_blinking(style: .soft)
-            Text("Hard Blinking")
-                .padding()
-                .CC_blinking(style: .hard)
+            }
         }
     }
-}
-
-struct Blink_Previews: PreviewProvider {
-    static var previews: some View {
-        BlinkView()
-    }
+    
+    return BlinkShowcase()
 }
 #endif

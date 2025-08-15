@@ -33,3 +33,40 @@ public extension View {
             .onPreferenceChange(SizePreferenceKey.self, perform: action)
     }
 }
+
+#if DEBUG
+#Preview {
+    struct MeasureSizeExample: View {
+        @State private var textSize: CGSize = .zero
+        @State private var rectangleSize: CGSize = .zero
+        
+        var body: some View {
+            VStack(spacing: 20) {
+                Text("Hello, World!")
+                    .font(.title)
+                    .padding()
+                    .background(Color.blue.opacity(0.2))
+                    .CC_measureSize { size in
+                        textSize = size
+                    }
+                
+                Text("Text Size: \(textSize.width, specifier: "%.0f") × \(textSize.height, specifier: "%.0f")")
+                    .font(.caption)
+                
+                Rectangle()
+                    .fill(Color.green.opacity(0.3))
+                    .frame(width: 200, height: 100)
+                    .CC_measureSize { size in
+                        rectangleSize = size
+                    }
+                
+                Text("Rectangle Size: \(rectangleSize.width, specifier: "%.0f") × \(rectangleSize.height, specifier: "%.0f")")
+                    .font(.caption)
+            }
+            .padding()
+        }
+    }
+    
+    return MeasureSizeExample()
+}
+#endif

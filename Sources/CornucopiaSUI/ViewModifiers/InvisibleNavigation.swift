@@ -27,6 +27,38 @@ extension View {
     }
 }
 
-//MARK: - Example
-
-//… tbd
+#if DEBUG
+#Preview {
+    struct InvisibleNavigationExample: View {
+        @State private var navigateToDetail = false
+        
+        var body: some View {
+            NavigationView {
+                VStack(spacing: 20) {
+                    Text("Tap the button to navigate")
+                        .font(.headline)
+                    
+                    Button("Navigate Programmatically") {
+                        navigateToDetail = true
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .CC_withInvisibleNavigation {
+                        Text("Detail View")
+                            .font(.largeTitle)
+                            .navigationTitle("Detail")
+                    }
+                    
+                    Text("This uses an invisible NavigationLink\nbehind the scenes")
+                        .font(.caption)
+                        .multilineTextAlignment(.center)
+                        .foregroundColor(.secondary)
+                }
+                .padding()
+                .navigationTitle("Invisible Navigation")
+            }
+        }
+    }
+    
+    return InvisibleNavigationExample()
+}
+#endif

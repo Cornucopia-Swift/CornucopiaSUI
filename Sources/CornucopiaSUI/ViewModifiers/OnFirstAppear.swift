@@ -27,3 +27,46 @@ extension View {
         self.modifier(OnFirstAppear(perform: perform))
     }
 }
+
+#if DEBUG
+#Preview {
+    struct OnFirstAppearExample: View {
+        @State private var appearCount = 0
+        @State private var firstAppearCount = 0
+        @State private var showChild = true
+        
+        var body: some View {
+            VStack(spacing: 20) {
+                Text("First Appear Count: \(firstAppearCount)")
+                    .font(.headline)
+                
+                Text("Regular Appear Count: \(appearCount)")
+                    .font(.headline)
+                
+                Toggle("Show Child View", isOn: $showChild)
+                    .padding()
+                
+                if showChild {
+                    Text("Child View")
+                        .padding()
+                        .background(Color.blue.opacity(0.2))
+                        .CC_onFirstAppear {
+                            firstAppearCount += 1
+                        }
+                        .onAppear {
+                            appearCount += 1
+                        }
+                }
+                
+                Text("Toggle the child view on/off.\nFirst appear only triggers once.")
+                    .font(.caption)
+                    .multilineTextAlignment(.center)
+                    .foregroundColor(.secondary)
+            }
+            .padding()
+        }
+    }
+    
+    return OnFirstAppearExample()
+}
+#endif
