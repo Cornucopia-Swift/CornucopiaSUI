@@ -10,6 +10,7 @@ public struct BlendingTextLabel: View {
     
     @State private var currentIndex: Int = 0
     @State private var opacity: Double = 1.0
+    @State private var timer: Timer?
     
     public init(_ texts: [String], duration: TimeInterval = 2.0) {
         self.texts = texts
@@ -23,10 +24,17 @@ public struct BlendingTextLabel: View {
                 guard texts.count > 1 else { return }
                 startBlending()
             }
+            .onDisappear {
+                stopBlending()
+            }
             .onChange(of: texts) { _ in
-                guard texts.count > 1 else { return }
+                guard texts.count > 1 else {
+                    stopBlending()
+                    return
+                }
                 currentIndex = 0
                 opacity = 1.0
+                stopBlending()
                 startBlending()
             }
     }
@@ -37,7 +45,7 @@ public struct BlendingTextLabel: View {
     }
     
     private func startBlending() {
-        Timer.scheduledTimer(withTimeInterval: duration, repeats: true) { _ in
+        timer = Timer.scheduledTimer(withTimeInterval: duration, repeats: true) { _ in
             withAnimation(.easeInOut(duration: 0.5)) {
                 opacity = 0.0
             }
@@ -49,6 +57,11 @@ public struct BlendingTextLabel: View {
                 }
             }
         }
+    }
+    
+    private func stopBlending() {
+        timer?.invalidate()
+        timer = nil
     }
 }
 
