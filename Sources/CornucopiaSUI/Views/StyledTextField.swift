@@ -201,4 +201,93 @@ public extension StyledTextField {
     }
 }
 
+// MARK: - Previews
+
+#if DEBUG && os(iOS)
+#Preview("StyledTextField Examples") {
+    @State var username = ""
+    @State var password = ""
+    @State var email = ""
+    @State var phone = ""
+    @State var url = ""
+    @State var customText = ""
+    @FocusState var isUsernameFocused: Bool
+    @FocusState var isPasswordFocused: Bool
+    
+    return ScrollView {
+        VStack(spacing: 24) {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Common Field Types")
+                    .font(.title2.bold())
+                    .padding(.horizontal)
+                
+                VStack(spacing: 16) {
+                    StyledTextField.username(
+                        text: $username,
+                        focused: $isUsernameFocused
+                    )
+                    
+                    StyledTextField.password(
+                        text: $password,
+                        focused: $isPasswordFocused
+                    )
+                    
+                    StyledTextField.email(text: $email)
+                    
+                    StyledTextField.phoneNumber(text: $phone)
+                    
+                    StyledTextField.url(text: $url)
+                }
+                .padding(.horizontal)
+            }
+            
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Custom Styling")
+                    .font(.title2.bold())
+                    .padding(.horizontal)
+                
+                VStack(spacing: 16) {
+                    StyledTextField(
+                        text: $customText,
+                        placeholder: "Search...",
+                        icon: .magnifyingglass,
+                        title: "Search",
+                        color: .pink
+                    )
+                    
+                    StyledTextField(
+                        text: $customText,
+                        placeholder: "Enter notes",
+                        icon: .note,
+                        title: "Notes",
+                        color: .teal
+                    )
+                }
+                .padding(.horizontal)
+            }
+            
+            VStack(alignment: .leading, spacing: 16) {
+                Text("With Pre-filled Content")
+                    .font(.title2.bold())
+                    .padding(.horizontal)
+                
+                VStack(spacing: 16) {
+                    StyledTextField.username(
+                        text: .constant("john.doe"),
+                        color: .indigo
+                    )
+                    
+                    StyledTextField.email(
+                        text: .constant("john.doe@example.com"),
+                        color: .blue
+                    )
+                }
+                .padding(.horizontal)
+            }
+        }
+        .padding(.vertical)
+    }
+}
+#endif
+
 #endif // os(iOS)
