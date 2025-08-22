@@ -205,12 +205,12 @@ public extension StyledTextField {
 
 #if DEBUG && os(iOS)
 #Preview("StyledTextField Examples") {
-    @State var username = ""
-    @State var password = ""
-    @State var email = ""
-    @State var phone = ""
-    @State var url = ""
-    @State var customText = ""
+    @Previewable @State var username = ""
+    @Previewable @State var password = ""
+    @Previewable @State var email = ""
+    @Previewable @State var phone = ""
+    @Previewable @State var url = ""
+    @Previewable @State var customText = ""
     @FocusState var isUsernameFocused: Bool
     @FocusState var isPasswordFocused: Bool
     
