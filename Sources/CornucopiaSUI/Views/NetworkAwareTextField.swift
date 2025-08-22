@@ -4,6 +4,28 @@ import Network
 
 // MARK: - Network Input Classification
 
+public enum NetworkValidationState: Equatable {
+    case empty
+    case ipv4(String, hostname: String?)
+    case ipv6(String, hostname: String?)
+    case macAddress(String, format: String)
+    case hostname(String, resolvedIPs: [String])
+    case checking(String)
+    case invalid(String)
+    
+    public var inputText: String {
+        switch self {
+        case .empty: return ""
+        case .ipv4(let ip, _): return ip
+        case .ipv6(let ip, _): return ip
+        case .macAddress(let mac, _): return mac
+        case .hostname(let hostname, _): return hostname
+        case .checking(let input): return input
+        case .invalid(let input): return input
+        }
+    }
+}
+
 enum NetworkInputType {
     case empty
     case ipv4
@@ -53,17 +75,21 @@ enum NetworkInputType {
 
 // MARK: - Configuration
 
-struct NetworkInputOptions: OptionSet {
-    let rawValue: Int
+public struct NetworkInputOptions: OptionSet {
+    public let rawValue: Int
     
-    static let hostname    = NetworkInputOptions(rawValue: 1 << 0)
-    static let ipv4        = NetworkInputOptions(rawValue: 1 << 1)
-    static let ipv6        = NetworkInputOptions(rawValue: 1 << 2)
-    static let macAddress  = NetworkInputOptions(rawValue: 1 << 3)
+    public static let hostname    = NetworkInputOptions(rawValue: 1 << 0)
+    public static let ipv4        = NetworkInputOptions(rawValue: 1 << 1)
+    public static let ipv6        = NetworkInputOptions(rawValue: 1 << 2)
+    public static let macAddress  = NetworkInputOptions(rawValue: 1 << 3)
     
-    static let all: NetworkInputOptions = [.hostname, .ipv4, .ipv6, .macAddress]
-    static let ipAddresses: NetworkInputOptions = [.ipv4, .ipv6]
-    static let ipAndHostname: NetworkInputOptions = [.hostname, .ipv4, .ipv6]
+    public static let all: NetworkInputOptions = [.hostname, .ipv4, .ipv6, .macAddress]
+    public static let ipAddresses: NetworkInputOptions = [.ipv4, .ipv6]
+    public static let ipAndHostname: NetworkInputOptions = [.hostname, .ipv4, .ipv6]
+    
+    public init(rawValue: Int) {
+        self.rawValue = rawValue
+    }
 }
 
 // MARK: - Validators
@@ -199,22 +225,48 @@ func classifyNetworkInputSync(_ s: String, allowedTypes: NetworkInputOptions) ->
 // MARK: - DNS Resolution
 
 @MainActor
-class NetworkInputValidator: ObservableObject {
+public class NetworkInputValidator: ObservableObject {
+    @Published public var validationState: NetworkValidationState = .empty
     @Published var inputType: NetworkInputType = .empty
     @Published var resolvedIPs: [String] = []
     @Published var resolvedHostname: String = ""
     @Published var lastCheckedInput: String = ""
     @Published var macFormat: String? = nil
-    let allowedTypes: NetworkInputOptions
+    public let allowedTypes: NetworkInputOptions
     private var debounceTask: Task<Void, Never>?
     
-    init(allowedTypes: NetworkInputOptions = .all) {
+    private func updateValidationState() {
+        let newState: NetworkValidationState = switch inputType {
+        case .empty:
+            .empty
+        case .ipv4:
+            .ipv4(lastCheckedInput, hostname: resolvedHostname.isEmpty ? nil : resolvedHostname)
+        case .ipv6:
+            .ipv6(lastCheckedInput, hostname: resolvedHostname.isEmpty ? nil : resolvedHostname)
+        case .macAddress:
+            .macAddress(lastCheckedInput, format: macFormat ?? "Unknown")
+        case .hostname:
+            .hostname(lastCheckedInput, resolvedIPs: resolvedIPs)
+        case .checking:
+            .checking(lastCheckedInput)
+        case .invalid:
+            .invalid(lastCheckedInput)
+        }
+        print("🔄 Updating validation state from \(validationState) to \(newState)")
+        validationState = newState
+    }
+    
+    public init(allowedTypes: NetworkInputOptions = .all) {
         self.allowedTypes = allowedTypes
     }
     
-    func validate(_ input: String) {
+    public func validate(_ input: String) {
         let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed != lastCheckedInput else { return }
+        print("⚡ Validating: '\(trimmed)' (last was: '\(lastCheckedInput)')")
+        guard trimmed != lastCheckedInput else { 
+            print("⚡ Skipping validation - same as last input")
+            return 
+        }
         
         // Cancel previous debounce task
         debounceTask?.cancel()
@@ -225,6 +277,7 @@ class NetworkInputValidator: ObservableObject {
         let (syncType, format) = classifyNetworkInputSync(trimmed, allowedTypes: allowedTypes)
         inputType = syncType
         macFormat = format
+        updateValidationState()
         
         // Handle different input types
         if syncType == .checking {
@@ -248,6 +301,7 @@ class NetworkInputValidator: ObservableObject {
                             self.resolvedIPs = ips
                             self.resolvedHostname = ""
                         }
+                        self.updateValidationState()
                     }
                 }
             }
@@ -265,6 +319,7 @@ class NetworkInputValidator: ObservableObject {
                     if trimmed == self.lastCheckedInput {
                         self.resolvedHostname = hostname
                         self.resolvedIPs = []
+                        self.updateValidationState()
                     }
                 }
             }
@@ -274,13 +329,14 @@ class NetworkInputValidator: ObservableObject {
         }
     }
     
-    func clear() {
+    public func clear() {
         inputType = .empty
         resolvedIPs = []
         resolvedHostname = ""
         lastCheckedInput = ""
         macFormat = nil
         debounceTask?.cancel()
+        updateValidationState()
     }
     
     private func performDNSLookup(hostname: String) async -> [String] {
@@ -399,14 +455,21 @@ class NetworkInputValidator: ObservableObject {
 
 // MARK: - SwiftUI View
 
-struct NetworkAwareTextField: View {
-    @State private var text: String = ""
-    @StateObject private var validator: NetworkInputValidator
+public struct NetworkAwareTextField: View {
+    @State private var internalText: String = ""
+    @StateObject public var validator: NetworkInputValidator
     let allowedTypes: NetworkInputOptions
     let placeholder: String
+    let externalTextBinding: Binding<String>?
     
-    init(allowedTypes: NetworkInputOptions = .all) {
+    // Text computed property that uses external binding if available
+    private var text: Binding<String> {
+        externalTextBinding ?? $internalText
+    }
+    
+    public init(allowedTypes: NetworkInputOptions = .all, text: Binding<String>? = nil) {
         self.allowedTypes = allowedTypes
+        self.externalTextBinding = text
         self._validator = StateObject(wrappedValue: NetworkInputValidator(allowedTypes: allowedTypes))
         
         // Generate placeholder based on allowed types
@@ -426,7 +489,12 @@ struct NetworkAwareTextField: View {
         }
     }
     
-    var body: some View {
+    /// Convenience initializer for binding to a string with default settings
+    public init(_ text: Binding<String>, allowedTypes: NetworkInputOptions = .all) {
+        self.init(allowedTypes: allowedTypes, text: text)
+    }
+    
+    public var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 Group {
@@ -451,7 +519,7 @@ struct NetworkAwareTextField: View {
             }
             
             HStack {
-                TextField(placeholder, text: $text)
+                TextField(placeholder, text: text)
                     #if os(iOS)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled(true)
@@ -460,9 +528,9 @@ struct NetworkAwareTextField: View {
                     .font(.system(.body, design: .monospaced))
                 
                 // Clear button inside text field
-                if !text.isEmpty {
+                if !text.wrappedValue.isEmpty {
                     Button {
-                        text = ""
+                        text.wrappedValue = ""
                         validator.clear()
                     } label: {
                         Image(systemName: "xmark.circle.fill")
@@ -557,7 +625,8 @@ struct NetworkAwareTextField: View {
             .foregroundStyle(.secondary)
         }
         .padding()
-        .onChange(of: text) { newValue in
+        .onChange(of: text.wrappedValue) { newValue in
+            print("🔄 Text changed to: '\(newValue)'")
             validator.validate(newValue)
         }
     }
@@ -593,29 +662,108 @@ struct NetworkAwareTextField: View {
 
 struct NetworkAwareTextField_Previews: PreviewProvider {
     static var previews: some View {
-        VStack(spacing: 30) {
-            VStack(alignment: .leading) {
-                Text("All types allowed:")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                NetworkAwareTextField(allowedTypes: .all)
+        ScrollView {
+            VStack(spacing: 30) {
+                // Demo 1: Drop-in TextField replacement
+                VStack(alignment: .leading) {
+                    Text("Drop-in TextField replacement:")
+                        .font(.headline)
+                    TextFieldReplacementDemo()
+                }
+                
+                // Demo 2: Type filtering
+                VStack(alignment: .leading) {
+                    Text("Input type filtering:")
+                        .font(.headline)
+                    TypeFilteringDemo()
+                }
+                
+                // Demo 3: Observing validation state
+                VStack(alignment: .leading) {
+                    Text("Observing validation state:")
+                        .font(.headline)
+                    AppConfigDemo()
+                }
             }
-            
-            VStack(alignment: .leading) {
-                Text("Only IP addresses:")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                NetworkAwareTextField(allowedTypes: .ipAddresses)
-            }
-            
-            VStack(alignment: .leading) {
-                Text("Only MAC addresses:")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                NetworkAwareTextField(allowedTypes: .macAddress)
-            }
+            .padding()
         }
         .previewLayout(.sizeThatFits)
-        .padding()
+    }
+}
+
+// MARK: - Preview Demos
+
+struct TextFieldReplacementDemo: View {
+    @State private var oldTextField = ""
+    @State private var newTextField = ""
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Before: Regular TextField")
+                    .font(.caption.weight(.medium))
+                TextField("Server address", text: $oldTextField)
+                    .textFieldStyle(.roundedBorder)
+            }
+            
+            VStack(alignment: .leading, spacing: 8) {
+                Text("After: NetworkAwareTextField")
+                    .font(.caption.weight(.medium))
+                NetworkAwareTextField($newTextField)
+            }
+            
+            if !newTextField.isEmpty {
+                Text("✓ Auto-validation, DNS lookup, visual feedback")
+                    .font(.caption)
+                    .foregroundStyle(.green)
+            }
+        }
+    }
+}
+
+struct AppConfigDemo: View {
+    @State private var serverHost = ""
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Server Host:")
+                .font(.caption.weight(.medium))
+            
+            let textField = NetworkAwareTextField($serverHost, allowedTypes: .ipAndHostname)
+            textField
+                .onAppear {
+                    print("🔍 Initial validation state: \(textField.validator.validationState)")
+                }
+                .onChange(of: textField.validator.validationState) { state in
+                    print("🔍 Validation state changed: \(state)")
+                }
+            
+            Text("Check console for validation state changes")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal)
+        }
+    }
+}
+
+struct TypeFilteringDemo: View {
+    @State private var anyType = ""
+    @State private var ipOnly = ""
+    @State private var macOnly = ""
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("All types (default):")
+                .font(.caption.weight(.medium))
+            NetworkAwareTextField($anyType)
+            
+            Text("IP addresses only:")
+                .font(.caption.weight(.medium))
+            NetworkAwareTextField($ipOnly, allowedTypes: .ipAddresses)
+            
+            Text("MAC addresses only:")
+                .font(.caption.weight(.medium))
+            NetworkAwareTextField($macOnly, allowedTypes: .macAddress)
+        }
     }
 }
