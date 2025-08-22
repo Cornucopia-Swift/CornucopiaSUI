@@ -18,12 +18,14 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/Cornucopia-Swift/CornucopiaCore", branch: "master"),
+        .package(url: "https://github.com/SFSafeSymbols/SFSafeSymbols", branch: "stable"),
     ],
     targets: [
         .target(
             name: "CornucopiaSUI",
             dependencies: [
                 "CornucopiaCore",
+                "SFSafeSymbols",
             ]
         ),
         .testTarget(
