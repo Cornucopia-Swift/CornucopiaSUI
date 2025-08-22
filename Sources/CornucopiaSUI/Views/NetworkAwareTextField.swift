@@ -8,43 +8,62 @@ enum NetworkInputType {
     case empty
     case ipv4
     case ipv6
+    case macAddress
     case hostname
     case checking
     case invalid
     
     var title: String {
         switch self {
-        case .empty:    return "Empty"
-        case .ipv4:     return "IPv4 address"
-        case .ipv6:     return "IPv6 address"
-        case .hostname: return "Hostname"
-        case .checking: return "Checking…"
-        case .invalid:  return "Invalid"
+        case .empty:      return "Empty"
+        case .ipv4:       return "IPv4 address"
+        case .ipv6:       return "IPv6 address"
+        case .macAddress: return "MAC address"
+        case .hostname:   return "Hostname"
+        case .checking:   return "Checking…"
+        case .invalid:    return "Invalid"
         }
     }
     
     /// SF Symbols that ship with iOS
     var systemImage: String {
         switch self {
-        case .ipv4:     return "number"
-        case .ipv6:     return "number.circle"
-        case .hostname: return "globe"
-        case .checking: return "magnifyingglass"
-        case .empty:    return "text.cursor"
-        case .invalid:  return "exclamationmark.triangle"
+        case .ipv4:       return "number"
+        case .ipv6:       return "number.circle"
+        case .macAddress: return "rectangle.connected.to.line.below"
+        case .hostname:   return "globe"
+        case .checking:   return "magnifyingglass"
+        case .empty:      return "text.cursor"
+        case .invalid:    return "exclamationmark.triangle"
         }
     }
     
     var color: Color {
         switch self {
-        case .ipv4:     return .blue
-        case .ipv6:     return .teal
-        case .hostname: return .purple
-        case .checking: return .secondary
-        case .empty:    return .secondary
-        case .invalid:  return .orange
+        case .ipv4:       return .blue
+        case .ipv6:       return .teal
+        case .macAddress: return .green
+        case .hostname:   return .purple
+        case .checking:   return .secondary
+        case .empty:      return .secondary
+        case .invalid:    return .orange
         }
     }
+}
+
+// MARK: - Configuration
+
+struct NetworkInputOptions: OptionSet {
+    let rawValue: Int
+    
+    static let hostname    = NetworkInputOptions(rawValue: 1 << 0)
+    static let ipv4        = NetworkInputOptions(rawValue: 1 << 1)
+    static let ipv6        = NetworkInputOptions(rawValue: 1 << 2)
+    static let macAddress  = NetworkInputOptions(rawValue: 1 << 3)
+    
+    static let all: NetworkInputOptions = [.hostname, .ipv4, .ipv6, .macAddress]
+    static let ipAddresses: NetworkInputOptions = [.ipv4, .ipv6]
+    static let ipAndHostname: NetworkInputOptions = [.hostname, .ipv4, .ipv6]
 }
 
 // MARK: - Validators
@@ -80,12 +99,69 @@ func isIPv6(_ s: String) -> Bool {
     return core.withCString { cstr in inet_pton(AF_INET6, cstr, &buf) == 1 }
 }
 
+/// Returns true if s is a valid MAC address (supports colon, dash, and dot notations)
+/// Returns the format type if valid, nil otherwise
+func isMACAddress(_ s: String) -> String? {
+    if s.isEmpty { return nil }
+    
+    let uppercase = s.uppercased()
+    
+    // Try colon notation (AA:BB:CC:DD:EE:FF)
+    if uppercase.contains(":") {
+        let parts = uppercase.split(separator: ":", omittingEmptySubsequences: false)
+        if parts.count == 6 {
+            let isValid = parts.allSatisfy { part in
+                part.count == 2 && part.allSatisfy { ch in
+                    (ch >= "0" && ch <= "9") || (ch >= "A" && ch <= "F")
+                }
+            }
+            if isValid { return "IEEE 802" }  // Colon notation
+        }
+    }
+    
+    // Try dash notation (AA-BB-CC-DD-EE-FF)
+    if uppercase.contains("-") {
+        let parts = uppercase.split(separator: "-", omittingEmptySubsequences: false)
+        if parts.count == 6 {
+            let isValid = parts.allSatisfy { part in
+                part.count == 2 && part.allSatisfy { ch in
+                    (ch >= "0" && ch <= "9") || (ch >= "A" && ch <= "F")
+                }
+            }
+            if isValid { return "Windows" }  // Dash notation
+        }
+    }
+    
+    // Try dot notation (AABB.CCDD.EEFF)
+    if uppercase.contains(".") {
+        let parts = uppercase.split(separator: ".", omittingEmptySubsequences: false)
+        if parts.count == 3 {
+            let isValid = parts.allSatisfy { part in
+                part.count == 4 && part.allSatisfy { ch in
+                    (ch >= "0" && ch <= "9") || (ch >= "A" && ch <= "F")
+                }
+            }
+            if isValid { return "Cisco" }  // Dot notation
+        }
+    }
+    
+    // Try no delimiter notation (AABBCCDDEEFF)
+    if uppercase.count == 12 {
+        let isValid = uppercase.allSatisfy { ch in
+            (ch >= "0" && ch <= "9") || (ch >= "A" && ch <= "F")
+        }
+        if isValid { return "Compact" }  // No delimiter notation
+    }
+    
+    return nil
+}
+
 /// Basic syntactic check for potential hostname (RFC LDH rule), but does not guarantee resolvability.
 /// This is used as a first-pass filter before attempting DNS resolution.
 func couldBeHostname(_ s: String) -> Bool {
     if s.isEmpty { return false }
-    // cannot be an IP
-    if isIPv4(s) || isIPv6(s) { return false }
+    // cannot be an IP or MAC
+    if isIPv4(s) || isIPv6(s) || isMACAddress(s) != nil { return false }
     // reject single characters/digits (like "1", "a") - not meaningful hostnames
     if s.count == 1 { return false }
     // reject pure numbers (like "26510") - DNS resolvers may interpret as 32-bit IP addresses
@@ -108,13 +184,16 @@ func couldBeHostname(_ s: String) -> Bool {
     return true
 }
 
-func classifyNetworkInputSync(_ s: String) -> NetworkInputType {
+func classifyNetworkInputSync(_ s: String, allowedTypes: NetworkInputOptions) -> (NetworkInputType, String?) {
     let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
-    if trimmed.isEmpty { return .empty }
-    if isIPv4(trimmed) { return .ipv4 }
-    if isIPv6(trimmed) { return .ipv6 }
-    if couldBeHostname(trimmed) { return .checking }
-    return .invalid
+    if trimmed.isEmpty { return (.empty, nil) }
+    
+    if allowedTypes.contains(.ipv4) && isIPv4(trimmed) { return (.ipv4, nil) }
+    if allowedTypes.contains(.ipv6) && isIPv6(trimmed) { return (.ipv6, nil) }
+    if allowedTypes.contains(.macAddress), let format = isMACAddress(trimmed) { return (.macAddress, format) }
+    if allowedTypes.contains(.hostname) && couldBeHostname(trimmed) { return (.checking, nil) }
+    
+    return (.invalid, nil)
 }
 
 // MARK: - DNS Resolution
@@ -125,7 +204,13 @@ class NetworkInputValidator: ObservableObject {
     @Published var resolvedIPs: [String] = []
     @Published var resolvedHostname: String = ""
     @Published var lastCheckedInput: String = ""
+    @Published var macFormat: String? = nil
+    let allowedTypes: NetworkInputOptions
     private var debounceTask: Task<Void, Never>?
+    
+    init(allowedTypes: NetworkInputOptions = .all) {
+        self.allowedTypes = allowedTypes
+    }
     
     func validate(_ input: String) {
         let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -137,8 +222,9 @@ class NetworkInputValidator: ObservableObject {
         lastCheckedInput = trimmed
         
         // First do synchronous classification
-        let syncType = classifyNetworkInputSync(trimmed)
+        let (syncType, format) = classifyNetworkInputSync(trimmed, allowedTypes: allowedTypes)
         inputType = syncType
+        macFormat = format
         
         // Handle different input types
         if syncType == .checking {
@@ -193,6 +279,7 @@ class NetworkInputValidator: ObservableObject {
         resolvedIPs = []
         resolvedHostname = ""
         lastCheckedInput = ""
+        macFormat = nil
         debounceTask?.cancel()
     }
     
@@ -314,7 +401,30 @@ class NetworkInputValidator: ObservableObject {
 
 struct NetworkAwareTextField: View {
     @State private var text: String = ""
-    @StateObject private var validator = NetworkInputValidator()
+    @StateObject private var validator: NetworkInputValidator
+    let allowedTypes: NetworkInputOptions
+    let placeholder: String
+    
+    init(allowedTypes: NetworkInputOptions = .all) {
+        self.allowedTypes = allowedTypes
+        self._validator = StateObject(wrappedValue: NetworkInputValidator(allowedTypes: allowedTypes))
+        
+        // Generate placeholder based on allowed types
+        var placeholderParts: [String] = []
+        if allowedTypes.contains(.hostname) { placeholderParts.append("Hostname") }
+        if allowedTypes.contains(.ipv4) { placeholderParts.append("IPv4") }
+        if allowedTypes.contains(.ipv6) { placeholderParts.append("IPv6") }
+        if allowedTypes.contains(.macAddress) { placeholderParts.append("MAC") }
+        
+        if placeholderParts.isEmpty {
+            self.placeholder = "Enter address"
+        } else if placeholderParts.count == 1 {
+            self.placeholder = placeholderParts[0]
+        } else {
+            let last = placeholderParts.removeLast()
+            self.placeholder = placeholderParts.joined(separator: ", ") + " or " + last
+        }
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -341,7 +451,7 @@ struct NetworkAwareTextField: View {
             }
             
             HStack {
-                TextField("Hostname, IPv4 or IPv6", text: $text)
+                TextField(placeholder, text: $text)
                     #if os(iOS)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled(true)
@@ -427,12 +537,18 @@ struct NetworkAwareTextField: View {
                     Text("Valid IPv4 address.")
                 case .ipv6:
                     Text("Valid IPv6 address. Scope identifiers like %en0 are supported.")
+                case .macAddress:
+                    if let format = validator.macFormat {
+                        Text("Valid MAC address (\(format) format).")
+                    } else {
+                        Text("Valid MAC address.")
+                    }
                 case .hostname:
                     Text("Hostname resolved successfully via DNS.")
                 case .checking:
                     Text("Checking if hostname can be resolved via DNS…")
                 case .invalid:
-                    Text("Not a valid hostname/IP or hostname cannot be resolved.")
+                    Text(generateInvalidMessage())
                 case .empty:
                     EmptyView()
                 }
@@ -445,14 +561,61 @@ struct NetworkAwareTextField: View {
             validator.validate(newValue)
         }
     }
+    
+    private func generateInvalidMessage() -> String {
+        var types: [String] = []
+        if allowedTypes.contains(.hostname) { types.append("hostname") }
+        if allowedTypes.contains(.ipv4) { types.append("IPv4") }
+        if allowedTypes.contains(.ipv6) { types.append("IPv6") }
+        if allowedTypes.contains(.macAddress) { types.append("MAC address") }
+        
+        if types.isEmpty {
+            return "Invalid input."
+        } else if types.count == 1 {
+            if allowedTypes.contains(.hostname) {
+                return "Not a valid \(types[0]) or cannot be resolved."
+            } else {
+                return "Not a valid \(types[0])."
+            }
+        } else {
+            let last = types.removeLast()
+            let joined = types.joined(separator: ", ")
+            if allowedTypes.contains(.hostname) {
+                return "Not a valid \(joined) or \(last), or hostname cannot be resolved."
+            } else {
+                return "Not a valid \(joined) or \(last)."
+            }
+        }
+    }
 }
 
 // MARK: - Preview
 
 struct NetworkAwareTextField_Previews: PreviewProvider {
     static var previews: some View {
-        NetworkAwareTextField()
-            .previewLayout(.sizeThatFits)
-            .padding()
+        VStack(spacing: 30) {
+            VStack(alignment: .leading) {
+                Text("All types allowed:")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                NetworkAwareTextField(allowedTypes: .all)
+            }
+            
+            VStack(alignment: .leading) {
+                Text("Only IP addresses:")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                NetworkAwareTextField(allowedTypes: .ipAddresses)
+            }
+            
+            VStack(alignment: .leading) {
+                Text("Only MAC addresses:")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                NetworkAwareTextField(allowedTypes: .macAddress)
+            }
+        }
+        .previewLayout(.sizeThatFits)
+        .padding()
     }
 }
