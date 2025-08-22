@@ -4,74 +4,6 @@ import Network
 
 // MARK: - Network Input Classification
 
-public enum NetworkValidationState: Equatable {
-    case empty
-    case ipv4(String, hostname: String?)
-    case ipv6(String, hostname: String?)
-    case macAddress(String, format: String)
-    case hostname(String, resolvedIPs: [String])
-    case checking(String)
-    case invalid(String)
-    
-    public var inputText: String {
-        switch self {
-        case .empty: return ""
-        case .ipv4(let ip, _): return ip
-        case .ipv6(let ip, _): return ip
-        case .macAddress(let mac, _): return mac
-        case .hostname(let hostname, _): return hostname
-        case .checking(let input): return input
-        case .invalid(let input): return input
-        }
-    }
-}
-
-enum NetworkInputType {
-    case empty
-    case ipv4
-    case ipv6
-    case macAddress
-    case hostname
-    case checking
-    case invalid
-    
-    var title: String {
-        switch self {
-        case .empty:      return "Empty"
-        case .ipv4:       return "IPv4 address"
-        case .ipv6:       return "IPv6 address"
-        case .macAddress: return "MAC address"
-        case .hostname:   return "Hostname"
-        case .checking:   return "Checking…"
-        case .invalid:    return "Invalid"
-        }
-    }
-    
-    /// SF Symbols that ship with iOS
-    var systemImage: String {
-        switch self {
-        case .ipv4:       return "number"
-        case .ipv6:       return "number.circle"
-        case .macAddress: return "rectangle.connected.to.line.below"
-        case .hostname:   return "globe"
-        case .checking:   return "magnifyingglass"
-        case .empty:      return "text.cursor"
-        case .invalid:    return "exclamationmark.triangle"
-        }
-    }
-    
-    var color: Color {
-        switch self {
-        case .ipv4:       return .blue
-        case .ipv6:       return .teal
-        case .macAddress: return .green
-        case .hostname:   return .purple
-        case .checking:   return .secondary
-        case .empty:      return .secondary
-        case .invalid:    return .orange
-        }
-    }
-}
 
 // MARK: - Configuration
 
@@ -210,7 +142,7 @@ func couldBeHostname(_ s: String) -> Bool {
     return true
 }
 
-func classifyNetworkInputSync(_ s: String, allowedTypes: NetworkInputOptions) -> (NetworkInputType, String?) {
+func classifyNetworkInputSync(_ s: String, allowedTypes: NetworkInputOptions) -> (NetworkAwareTextField.InputType, String?) {
     let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
     if trimmed.isEmpty { return (.empty, nil) }
     
@@ -226,8 +158,8 @@ func classifyNetworkInputSync(_ s: String, allowedTypes: NetworkInputOptions) ->
 
 @MainActor
 public class NetworkInputValidator: ObservableObject {
-    @Published public var validationState: NetworkValidationState = .empty
-    @Published var inputType: NetworkInputType = .empty
+    @Published public var validationState: NetworkAwareTextField.ValidationState = .empty
+    @Published var inputType: NetworkAwareTextField.InputType = .empty
     @Published var resolvedIPs: [String] = []
     @Published var resolvedHostname: String = ""
     @Published var lastCheckedInput: String = ""
@@ -236,21 +168,21 @@ public class NetworkInputValidator: ObservableObject {
     private var debounceTask: Task<Void, Never>?
     
     private func updateValidationState() {
-        let newState: NetworkValidationState = switch inputType {
-        case .empty:
-            .empty
-        case .ipv4:
-            .ipv4(lastCheckedInput, hostname: resolvedHostname.isEmpty ? nil : resolvedHostname)
-        case .ipv6:
-            .ipv6(lastCheckedInput, hostname: resolvedHostname.isEmpty ? nil : resolvedHostname)
-        case .macAddress:
-            .macAddress(lastCheckedInput, format: macFormat ?? "Unknown")
-        case .hostname:
-            .hostname(lastCheckedInput, resolvedIPs: resolvedIPs)
-        case .checking:
-            .checking(lastCheckedInput)
-        case .invalid:
-            .invalid(lastCheckedInput)
+        let newState: NetworkAwareTextField.ValidationState = switch inputType {
+            case .empty:
+                .empty
+            case .ipv4:
+                .ipv4(lastCheckedInput, hostname: resolvedHostname.isEmpty ? nil : resolvedHostname)
+            case .ipv6:
+                .ipv6(lastCheckedInput, hostname: resolvedHostname.isEmpty ? nil : resolvedHostname)
+            case .macAddress:
+                .macAddress(lastCheckedInput, format: macFormat ?? "Unknown")
+            case .hostname:
+                .hostname(lastCheckedInput, resolvedIPs: resolvedIPs)
+            case .checking:
+                .checking(lastCheckedInput)
+            case .invalid:
+                .invalid(lastCheckedInput)
         }
         print("🔄 Updating validation state from \(validationState) to \(newState)")
         validationState = newState
@@ -456,20 +388,93 @@ public class NetworkInputValidator: ObservableObject {
 // MARK: - SwiftUI View
 
 public struct NetworkAwareTextField: View {
+    
+    public enum ValidationState: Equatable {
+        case empty
+        case ipv4(String, hostname: String?)
+        case ipv6(String, hostname: String?)
+        case macAddress(String, format: String)
+        case hostname(String, resolvedIPs: [String])
+        case checking(String)
+        case invalid(String)
+        
+        public var inputText: String {
+            switch self {
+                case .empty: ""
+                case .ipv4(let ip, _): ip
+                case .ipv6(let ip, _): ip
+                case .macAddress(let mac, _): mac
+                case .hostname(let hostname, _): hostname
+                case .checking(let input): input
+                case .invalid(let input): input
+            }
+        }
+    }
+    
+    enum InputType {
+        case empty
+        case ipv4
+        case ipv6
+        case macAddress
+        case hostname
+        case checking
+        case invalid
+        
+        var title: String {
+            switch self {
+                case .empty:      "Empty"
+                case .ipv4:       "IPv4 address"
+                case .ipv6:       "IPv6 address"
+                case .macAddress: "MAC address"
+                case .hostname:   "Hostname"
+                case .checking:   "Checking…"
+                case .invalid:    "Invalid"
+            }
+        }
+        
+        /// SF Symbols that ship with iOS
+        var systemImage: String {
+            switch self {
+                case .ipv4:       "number"
+                case .ipv6:       "number.circle"
+                case .macAddress: "rectangle.connected.to.line.below"
+                case .hostname:   "globe"
+                case .checking:   "magnifyingglass"
+                case .empty:      "text.cursor"
+                case .invalid:    "exclamationmark.triangle"
+            }
+        }
+        
+        var color: Color {
+            switch self {
+                case .ipv4:       .blue
+                case .ipv6:       .teal
+                case .macAddress: .green
+                case .hostname:   .purple
+                case .checking:   .secondary
+                case .empty:      .secondary
+                case .invalid:    .orange
+            }
+        }
+    }
     @State private var internalText: String = ""
     @StateObject public var validator: NetworkInputValidator
     let allowedTypes: NetworkInputOptions
     let placeholder: String
     let externalTextBinding: Binding<String>?
+    let focusedBinding: FocusState<Bool>.Binding?
+    let validationStateBinding: Binding<ValidationState>?
     
     // Text computed property that uses external binding if available
     private var text: Binding<String> {
         externalTextBinding ?? $internalText
     }
     
-    public init(allowedTypes: NetworkInputOptions = .all, text: Binding<String>? = nil) {
+    public init(allowedTypes: NetworkInputOptions = .all, text: Binding<String>? = nil, focused: FocusState<Bool>.Binding? = nil, validationState: Binding<ValidationState>? = nil) {
         self.allowedTypes = allowedTypes
         self.externalTextBinding = text
+        self.focusedBinding = focused
+        self.validationStateBinding = validationState
         self._validator = StateObject(wrappedValue: NetworkInputValidator(allowedTypes: allowedTypes))
         
         // Generate placeholder based on allowed types
@@ -492,6 +497,21 @@ public struct NetworkAwareTextField: View {
     /// Convenience initializer for binding to a string with default settings
     public init(_ text: Binding<String>, allowedTypes: NetworkInputOptions = .all) {
         self.init(allowedTypes: allowedTypes, text: text)
+    }
+    
+    /// Convenience initializer with focus binding
+    public init(_ text: Binding<String>, allowedTypes: NetworkInputOptions = .all, focused: FocusState<Bool>.Binding) {
+        self.init(allowedTypes: allowedTypes, text: text, focused: focused)
+    }
+    
+    /// Convenience initializer with validation state binding
+    public init(_ text: Binding<String>, allowedTypes: NetworkInputOptions = .all, validationState: Binding<ValidationState>) {
+        self.init(allowedTypes: allowedTypes, text: text, validationState: validationState)
+    }
+    
+    /// Full convenience initializer
+    public init(_ text: Binding<String>, allowedTypes: NetworkInputOptions = .all, focused: FocusState<Bool>.Binding, validationState: Binding<ValidationState>) {
+        self.init(allowedTypes: allowedTypes, text: text, focused: focused, validationState: validationState)
     }
     
     public var body: some View {
@@ -519,13 +539,20 @@ public struct NetworkAwareTextField: View {
             }
             
             HStack {
-                TextField(placeholder, text: text)
-                    #if os(iOS)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled(true)
-                    .keyboardType(.URL)
-                    #endif
-                    .font(.system(.body, design: .monospaced))
+                Group {
+                    if let focusedBinding = focusedBinding {
+                        TextField(placeholder, text: text)
+                            .focused(focusedBinding)
+                    } else {
+                        TextField(placeholder, text: text)
+                    }
+                }
+                #if os(iOS)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled(true)
+                .keyboardType(.URL)
+                #endif
+                .font(.system(.body, design: .monospaced))
                 
                 // Clear button inside text field
                 if !text.wrappedValue.isEmpty {
@@ -624,10 +651,12 @@ public struct NetworkAwareTextField: View {
             .font(.footnote)
             .foregroundStyle(.secondary)
         }
-        .padding()
         .onChange(of: text.wrappedValue) { newValue in
             print("🔄 Text changed to: '\(newValue)'")
             validator.validate(newValue)
+        }
+        .onChange(of: validator.validationState) { newState in
+            validationStateBinding?.wrappedValue = newState
         }
     }
     
@@ -669,6 +698,7 @@ struct NetworkAwareTextField_Previews: PreviewProvider {
                     Text("Drop-in TextField replacement:")
                         .font(.headline)
                     TextFieldReplacementDemo()
+                        .padding()
                 }
                 
                 // Demo 2: Type filtering
@@ -676,6 +706,7 @@ struct NetworkAwareTextField_Previews: PreviewProvider {
                     Text("Input type filtering:")
                         .font(.headline)
                     TypeFilteringDemo()
+                        .padding()
                 }
                 
                 // Demo 3: Observing validation state
@@ -683,6 +714,7 @@ struct NetworkAwareTextField_Previews: PreviewProvider {
                     Text("Observing validation state:")
                         .font(.headline)
                     AppConfigDemo()
+                        .padding()
                 }
             }
             .padding()
