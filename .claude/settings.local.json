@@ -3,7 +3,8 @@
     "allow": [
       "Bash(swift build:*)",
       "Bash(swift test:*)",
-      "Bash(swiftc:*)"
+      "Bash(swiftc:*)",
+      "WebSearch"
     ],
     "defaultMode": "acceptEdits"
   }
