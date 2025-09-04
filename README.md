@@ -44,9 +44,11 @@ Or add it through Xcode:
 
 ### 📱 Views & Components
 - **`BusyButton`** - Buttons with built-in loading states
+- **`MarqueeScrollView`** - Generic auto-scrolling container for any SwiftUI content (iOS 17+)
 - **`MarqueeText`** - Smoothly scrolling text for long content
 - **`BlendingTextLabel`** - Text with blending animations
 - **`NetworkAwareTextField`** - Text fields that adapt to network state
+- **`VINTextField`** - Vehicle Identification Number input with validation and formatting
 - **`SingleAxisGeometryReader`** - Geometry reading for single axis
 - **`ImagePickerView`** - UIKit image picker integration
 
@@ -122,6 +124,36 @@ struct ContentView: View {
 enum DetailDestination: Hashable {
     case profile(userId: Int)
     case settings
+}
+```
+
+### MarqueeScrollView - Generic Auto-Scrolling Container
+
+```swift
+import SwiftUI
+import CornucopiaSUI
+
+struct ContentView: View {
+    var body: some View {
+        VStack(spacing: 20) {
+            // Any SwiftUI content can scroll
+            MarqueeScrollView {
+                Label("Long configuration settings text", systemImage: "gear")
+            }
+            .frame(width: 200)
+            
+            // Complex layouts work too
+            MarqueeScrollView(startDelay: 1.0) {
+                HStack {
+                    Image(systemName: "star.fill")
+                        .foregroundColor(.yellow)
+                    Text("★★★★★ Excellent product with amazing reviews!")
+                        .bold()
+                }
+            }
+            .frame(width: 250)
+        }
+    }
 }
 ```
 
@@ -220,6 +252,44 @@ struct NetworkStatusView: View {
         .onAppear {
             reachability.startMonitoring()
         }
+    }
+}
+```
+
+### VINTextField - Vehicle Identification Number Input
+
+```swift
+import SwiftUI
+import CornucopiaSUI
+
+struct VehicleEntryView: View {
+    @State private var vin = ""
+    @State private var validationState: VINTextField.ValidationState = .empty
+    @FocusState private var isFocused: Bool
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            VINTextField($vin, focused: $isFocused, validationState: $validationState)
+            
+            // Respond to validation state changes
+            switch validationState {
+            case .valid(let validVin, let components):
+                VStack {
+                    Text("Valid VIN: \(validVin)")
+                        .foregroundColor(.green)
+                    if let modelYear = components.modelYear {
+                        Text("Model Year: \(modelYear)")
+                            .font(.caption)
+                    }
+                }
+            case .invalidCheckDigit:
+                Text("VIN contains errors - please verify")
+                    .foregroundColor(.red)
+            default:
+                EmptyView()
+            }
+        }
+        .padding()
     }
 }
 ```
