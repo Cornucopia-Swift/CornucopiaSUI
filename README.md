@@ -47,6 +47,7 @@ Or add it through Xcode:
 - **`MarqueeScrollView`** - Generic auto-scrolling container for any SwiftUI content (iOS 17+)
 - **`MarqueeText`** - Smoothly scrolling text for long content
 - **`BlendingTextLabel`** - Text with blending animations
+- **`SynchronizedBlendingTextLabel`** - Blended text synchronized across a group
 - **`NetworkAwareTextField`** - Text fields that adapt to network state
 - **`VINTextField`** - Vehicle Identification Number input with validation and formatting
 - **`SingleAxisGeometryReader`** - Geometry reading for single axis
@@ -174,6 +175,49 @@ struct TickerView: View {
     }
 }
 ```
+
+### SynchronizedBlendingTextLabel - Sync Blending Across Views
+
+Synchronize the text-blending animation of multiple labels, independent of when each view appears. Wrap a subtree with `CC_blendingSyncGroup`, then use `SynchronizedBlendingTextLabel` inside it.
+
+```swift
+import SwiftUI
+import CornucopiaSUI
+
+struct StatusRow: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // These two labels will advance in lockstep
+            SynchronizedBlendingTextLabel(["Loading", "Processing", "Working"], duration: 1.5)
+            SynchronizedBlendingTextLabel(["Please wait", "Almost there", "Finalizing"], duration: 1.5)
+        }
+        .CC_blendingSyncGroup("status", duration: 1.5) // group controls the cadence
+    }
+}
+```
+
+Notes:
+- The group’s `duration` controls the cycle timing for all members of that group.
+- A `SynchronizedBlendingTextLabel` outside any group automatically falls back to `BlendingTextLabel` and uses its own `duration`.
+- Multiple independent groups can coexist:
+
+```swift
+HStack(spacing: 24) {
+    VStack {
+        Text("Fast")
+        SynchronizedBlendingTextLabel(["●", "●", "●"], duration: 0.8)
+    }
+    .CC_blendingSyncGroup("fast", duration: 0.8)
+
+    VStack {
+        Text("Slow")
+        SynchronizedBlendingTextLabel(["◆", "◆", "◆"], duration: 2.5)
+    }
+    .CC_blendingSyncGroup("slow", duration: 2.5)
+}
+```
+
+Tip: See the preview “SynchronizedBlendingTextLabel - Scroll Sync Showcase” for a scroll-heavy example that clearly demonstrates synchronization when rows appear at different times.
 
 ### Persistent Tasks - Background Work That Survives Navigation
 
