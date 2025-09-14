@@ -19,6 +19,8 @@ struct ConfirmationDialogView: View {
     let title: String
     let message: String?
     let actions: [ConfirmationDialogAction]
+    // If provided and `actions` is empty, render raw content instead of synthesized buttons
+    let actionsContent: AnyView?
     @Binding var isPresented: Bool
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
@@ -61,14 +63,24 @@ struct ConfirmationDialogView: View {
 
     @ViewBuilder
     private var actionSection: some View {
-        VStack(spacing: 0) {
-            ForEach(Array(actions.enumerated()), id: \.offset) { index, action in
-                actionButton(for: action)
+        Group {
+            if !actions.isEmpty {
+                VStack(spacing: 0) {
+                    ForEach(Array(actions.enumerated()), id: \.offset) { index, action in
+                        actionButton(for: action)
 
-                if index < actions.count - 1 {
-                    Divider()
-                        .background(separatorColor)
+                        if index < actions.count - 1 {
+                            Divider()
+                                .background(separatorColor)
+                        }
+                    }
                 }
+            } else if let actionsContent {
+                // Fallback: render provided content verbatim to allow standard Buttons
+                VStack(spacing: 0) {
+                    actionsContent
+                }
+                .buttonStyle(.plain) // closer to native confirmation dialog look
             }
         }
         .background(backgroundColor)

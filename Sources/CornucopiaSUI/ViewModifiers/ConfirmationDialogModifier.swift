@@ -25,6 +25,7 @@ struct ConfirmationDialogModifier: ViewModifier {
     @Binding var isPresented: Bool
     let message: String?
     let actions: [ConfirmationDialogAction]
+    let actionsContent: AnyView?
 
     func body(content: Content) -> some View {
         content
@@ -33,6 +34,7 @@ struct ConfirmationDialogModifier: ViewModifier {
                     title: titleVisibility == .visible ? title : "",
                     message: message,
                     actions: actions,
+                    actionsContent: actionsContent,
                     isPresented: $isPresented
                 )
                 .CC_presentationDetentAutoHeight()
@@ -55,7 +57,8 @@ public extension View {
                 titleVisibility: titleVisibility == .automatic ? .visible : titleVisibility,
                 isPresented: isPresented,
                 message: message,
-                actions: actions
+                actions: actions,
+                actionsContent: nil
             )
         )
     }
@@ -66,14 +69,16 @@ public extension View {
         titleVisibility: Visibility = .automatic,
         @ViewBuilder actions: () -> A
     ) -> some View {
-        let extractedActions = Self.extractActions(from: actions())
+        let providedActionsView = actions()
+        let extractedActions = Self.extractActions(from: providedActionsView)
         return modifier(
             ConfirmationDialogModifier(
                 title: title,
                 titleVisibility: titleVisibility == .automatic ? .visible : titleVisibility,
                 isPresented: isPresented,
                 message: nil,
-                actions: extractedActions
+                actions: extractedActions,
+                actionsContent: extractedActions.isEmpty ? AnyView(providedActionsView) : nil
             )
         )
     }
@@ -85,7 +90,8 @@ public extension View {
         @ViewBuilder actions: () -> A,
         @ViewBuilder message: () -> M
     ) -> some View {
-        let extractedActions = Self.extractActions(from: actions())
+        let providedActionsView = actions()
+        let extractedActions = Self.extractActions(from: providedActionsView)
         let messageText = Self.extractText(from: message())
         return modifier(
             ConfirmationDialogModifier(
@@ -93,7 +99,8 @@ public extension View {
                 titleVisibility: titleVisibility == .automatic ? .visible : titleVisibility,
                 isPresented: isPresented,
                 message: messageText,
-                actions: extractedActions
+                actions: extractedActions,
+                actionsContent: extractedActions.isEmpty ? AnyView(providedActionsView) : nil
             )
         )
     }
