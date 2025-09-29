@@ -27,16 +27,13 @@ struct ConfirmationDialogView: View {
     @FocusState private var isInputFocused: Bool
 
     var body: some View {
-        ZStack(alignment: .top) {
-            sheetBackground
-                .ignoresSafeArea()
-
-            dialogCard
-                .padding(.horizontal, 20)
-                .padding(.top, 20)
-                .padding(.bottom, 12)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        dialogCard
+            .padding(.horizontal, 20)
+            .padding(.vertical, 20)
+            .background(
+                sheetBackground
+                    .ignoresSafeArea()
+            )
     }
 
     private var dialogCard: some View {
@@ -47,6 +44,7 @@ struct ConfirmationDialogView: View {
             cancelSection
         }
         .frame(maxWidth: .infinity)
+        .padding(.bottom, 24)
         .background(dialogBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.55 : 0.12), radius: 26, y: 14)
