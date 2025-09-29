@@ -63,6 +63,26 @@ public extension View {
         )
     }
 
+    func CC_confirmationDialog<I: View>(
+        _ title: String,
+        isPresented: Binding<Bool>,
+        titleVisibility: Visibility = .automatic,
+        actions: [ConfirmationDialogAction],
+        message: String? = nil,
+        @ViewBuilder inputContent: () -> I
+    ) -> some View {
+        modifier(
+            ConfirmationDialogModifier(
+                title: title,
+                titleVisibility: titleVisibility == .automatic ? .visible : titleVisibility,
+                isPresented: isPresented,
+                message: message,
+                actions: actions,
+                actionsContent: AnyView(inputContent())
+            )
+        )
+    }
+
     func CC_confirmationDialog<A: View>(
         _ title: String,
         isPresented: Binding<Bool>,

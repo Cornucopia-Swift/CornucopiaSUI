@@ -24,6 +24,7 @@ struct ConfirmationDialogView: View {
     @Binding var isPresented: Bool
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
+    @FocusState private var isInputFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
@@ -34,6 +35,13 @@ struct ConfirmationDialogView: View {
         }
         .frame(maxWidth: .infinity)
         .background(backgroundColor)
+        .onAppear {
+            if actionsContent != nil {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    isInputFocused = true
+                }
+            }
+        }
     }
 
     @ViewBuilder
@@ -63,24 +71,32 @@ struct ConfirmationDialogView: View {
 
     @ViewBuilder
     private var actionSection: some View {
-        Group {
-            if !actions.isEmpty {
-                VStack(spacing: 0) {
-                    ForEach(Array(actions.enumerated()), id: \.offset) { index, action in
-                        actionButton(for: action)
+        VStack(spacing: 0) {
+            // First show input content if provided (e.g., TextField)
+            if let actionsContent {
+                VStack(spacing: 12) {
+                    actionsContent
+                        .focused($isInputFocused)
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
 
-                        if index < actions.count - 1 {
-                            Divider()
-                                .background(separatorColor)
-                        }
+                if !actions.isEmpty {
+                    Divider()
+                        .background(separatorColor)
+                }
+            }
+
+            // Then show action buttons
+            if !actions.isEmpty {
+                ForEach(Array(actions.enumerated()), id: \.offset) { index, action in
+                    actionButton(for: action)
+
+                    if index < actions.count - 1 {
+                        Divider()
+                            .background(separatorColor)
                     }
                 }
-            } else if let actionsContent {
-                // Fallback: render provided content verbatim to allow standard Buttons
-                VStack(spacing: 0) {
-                    actionsContent
-                }
-                .buttonStyle(.plain) // closer to native confirmation dialog look
             }
         }
         .background(backgroundColor)
@@ -205,11 +221,18 @@ struct ProfessionalButtonStyle: ButtonStyle {
     }
 }
 
+
 #Preview("Custom Confirmation Dialog") {
     struct ConfirmationDialogDemo: View {
         @State private var showSimpleDialog = false
         @State private var showComplexDialog = false
+        @State private var showTextFieldDialog = false
+        @State private var showLiveEditDialog = false
         @State private var lastAction = ""
+        @State private var textFieldValue = ""
+        @State private var liveEditText = ""
+        @State private var characterCount = 0
+        @State private var isValidInput = false
 
         var body: some View {
             VStack(spacing: 30) {
@@ -226,6 +249,20 @@ struct ProfessionalButtonStyle: ButtonStyle {
 
                     Button("Export Options") {
                         showComplexDialog = true
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
+
+                    Button("Rename Item") {
+                        textFieldValue = "Current Name"
+                        showTextFieldDialog = true
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
+
+                    Button("Live Edit Demo") {
+                        textFieldValue = ""
+                        showLiveEditDialog = true
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.large)
@@ -273,6 +310,60 @@ struct ProfessionalButtonStyle: ButtonStyle {
                 ],
                 message: "Choose your preferred export format:"
             )
+            .CC_confirmationDialog(
+                "Rename Item",
+                isPresented: $showTextFieldDialog,
+                actions: [
+                    ConfirmationDialogAction("Rename") {
+                        lastAction = "Renamed to: \(textFieldValue)"
+                    },
+                    ConfirmationDialogAction("Delete", role: .destructive) {
+                        lastAction = "Item deleted"
+                    }
+                ],
+                message: "Enter a new name for this item:"
+            ) {
+                TextField("Enter name", text: $textFieldValue)
+                    .textFieldStyle(.roundedBorder)
+                    .padding(.horizontal, 20)
+            }
+            // Demo: "On-the-fly" editing using SwiftUI bindings
+            // The TextField's binding automatically updates parent state,
+            // allowing real-time validation, character counting, and dynamic UI updates
+            .CC_confirmationDialog(
+                "Live Edit Demo",
+                isPresented: $showLiveEditDialog,
+                actions: [
+                    ConfirmationDialogAction("Save", role: isValidInput ? nil : .cancel) {
+                        lastAction = "Saved: '\(liveEditText)' (\(characterCount) chars)"
+                    }
+                ],
+                message: "Watch the character count and validation update as you type:"
+            ) {
+                VStack(spacing: 12) {
+                    TextField("Type something...", text: $liveEditText)
+                        .textFieldStyle(.roundedBorder)
+                        .onChange(of: liveEditText) { newValue in
+                            characterCount = newValue.count
+                            isValidInput = newValue.count >= 3 && !newValue.trimmingCharacters(in: .whitespaces).isEmpty
+                        }
+
+                    HStack {
+                        Text("Characters: \(characterCount)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+
+                        Spacer()
+
+                        if characterCount > 0 {
+                            Text(isValidInput ? "✓ Valid" : "⚠️ Min 3 chars")
+                                .font(.caption)
+                                .foregroundColor(isValidInput ? .green : .orange)
+                        }
+                    }
+                    .padding(.horizontal, 4)
+                }
+            }
         }
     }
 
