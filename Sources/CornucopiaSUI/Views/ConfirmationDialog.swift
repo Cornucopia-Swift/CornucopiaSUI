@@ -27,6 +27,19 @@ struct ConfirmationDialogView: View {
     @FocusState private var isInputFocused: Bool
 
     var body: some View {
+        ZStack(alignment: .top) {
+            sheetBackground
+                .ignoresSafeArea()
+
+            dialogCard
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
+                .padding(.bottom, 12)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+
+    private var dialogCard: some View {
         VStack(spacing: 0) {
             headerSection
             actionSection
@@ -34,7 +47,9 @@ struct ConfirmationDialogView: View {
             cancelSection
         }
         .frame(maxWidth: .infinity)
-        .background(backgroundColor)
+        .background(dialogBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.55 : 0.12), radius: 26, y: 14)
         .onAppear {
             if actionsContent != nil {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -77,14 +92,14 @@ struct ConfirmationDialogView: View {
                 VStack(spacing: 12) {
                     actionsContent
                         .focused($isInputFocused)
+                        .textFieldStyle(RecessedTextFieldStyle())
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 20)
-                .padding(.vertical, 16)
-
-                if !actions.isEmpty {
-                    Divider()
-                        .background(separatorColor)
-                }
+                .padding(.vertical, 20)
+                .background(inputFieldBackground)
+                .padding(.horizontal, 16)
+                .padding(.bottom, actions.isEmpty ? 0 : 12)
             }
 
             // Then show action buttons
@@ -99,7 +114,6 @@ struct ConfirmationDialogView: View {
                 }
             }
         }
-        .background(backgroundColor)
     }
 
     @ViewBuilder
@@ -200,6 +214,148 @@ struct ConfirmationDialogView: View {
         #endif
     }
 
+    private var sheetBackground: some View {
+        backgroundColor
+            .overlay(
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        Color.accentColor.opacity(colorScheme == .dark ? 0.32 : 0.14),
+                        Color.accentColor.opacity(colorScheme == .dark ? 0.12 : 0.05),
+                        Color.clear
+                    ]),
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+            .overlay(
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        Color.black.opacity(colorScheme == .dark ? 0.45 : 0.06),
+                        Color.clear
+                    ]),
+                    startPoint: .bottom,
+                    endPoint: .top
+                )
+            )
+    }
+
+    @ViewBuilder
+    private var dialogBackground: some View {
+        ZStack {
+            backgroundColor
+
+            // Subtle gradient overlay that respects accent color
+            LinearGradient(
+                gradient: Gradient(colors: [
+                    Color.accentColor.opacity(colorScheme == .dark ? 0.03 : 0.02),
+                    Color.clear,
+                    Color.accentColor.opacity(colorScheme == .dark ? 0.05 : 0.03)
+                ]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        }
+    }
+
+    private var inputFieldBackground: some View {
+        let baseSurface = colorScheme == .dark ? Color(white: 0.14) : Color.white
+        let highlight = Color.white.opacity(colorScheme == .dark ? 0.08 : 0.55)
+        let contourShadow = Color.black.opacity(colorScheme == .dark ? 0.55 : 0.12)
+
+        return RoundedRectangle(cornerRadius: 18, style: .continuous)
+            .fill(
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        baseSurface.opacity(colorScheme == .dark ? 0.85 : 0.96),
+                        baseSurface.opacity(colorScheme == .dark ? 0.6 : 0.9)
+                    ]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .strokeBorder(
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                highlight,
+                                contourShadow.opacity(colorScheme == .dark ? 0.7 : 0.4)
+                            ]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
+                    .blendMode(.overlay)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(Color.accentColor.opacity(isInputFocused ? (colorScheme == .dark ? 0.55 : 0.28) : 0), lineWidth: isInputFocused ? 1.6 : 0)
+            )
+            .shadow(color: contourShadow.opacity(colorScheme == .dark ? 0.9 : 0.6), radius: 20, x: 0, y: 10)
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(Color.white.opacity(colorScheme == .dark ? 0.03 : 0.18), lineWidth: 0.8)
+                    .blendMode(.screen)
+                    .opacity(0.8)
+            )
+            .animation(.easeInOut(duration: 0.18), value: isInputFocused)
+    }
+
+}
+
+private struct RecessedTextFieldStyle: TextFieldStyle {
+    @Environment(\.colorScheme) private var colorScheme
+
+    func _body(configuration: TextField<Self._Label>) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+
+        return configuration
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(
+                shape
+                    .fill(fieldFill)
+                    .shadow(color: highlightShadow, radius: 1.2, x: -1, y: -1)
+                    .shadow(color: dropShadow, radius: 2.0, x: 1.4, y: 1.6)
+            )
+            .overlay(shape.strokeBorder(fieldStroke, lineWidth: 0.9))
+            .overlay(
+                shape
+                    .stroke(Color.accentColor.opacity(colorScheme == .dark ? 0.25 : 0.18), lineWidth: 0.6)
+                    .blendMode(.overlay)
+            )
+    }
+
+    private var fieldFill: LinearGradient {
+        LinearGradient(
+            gradient: Gradient(colors: [
+                Color.white.opacity(colorScheme == .dark ? 0.08 : 0.95),
+                Color.black.opacity(colorScheme == .dark ? 0.45 : 0.08)
+            ]),
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    private var fieldStroke: LinearGradient {
+        LinearGradient(
+            gradient: Gradient(colors: [
+                Color.white.opacity(colorScheme == .dark ? 0.05 : 0.4),
+                Color.black.opacity(colorScheme == .dark ? 0.55 : 0.12)
+            ]),
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    private var highlightShadow: Color {
+        Color.white.opacity(colorScheme == .dark ? 0.05 : 0.6)
+    }
+
+    private var dropShadow: Color {
+        Color.black.opacity(colorScheme == .dark ? 0.6 : 0.12)
+    }
 }
 
 struct ProfessionalButtonStyle: ButtonStyle {
@@ -324,8 +480,7 @@ struct ProfessionalButtonStyle: ButtonStyle {
                 message: "Enter a new name for this item:"
             ) {
                 TextField("Enter name", text: $textFieldValue)
-                    .textFieldStyle(.roundedBorder)
-                    .padding(.horizontal, 20)
+                    .textInputAutocapitalization(.words)
             }
             // Demo: "On-the-fly" editing using SwiftUI bindings
             // The TextField's binding automatically updates parent state,
@@ -342,7 +497,6 @@ struct ProfessionalButtonStyle: ButtonStyle {
             ) {
                 VStack(spacing: 12) {
                     TextField("Type something...", text: $liveEditText)
-                        .textFieldStyle(.roundedBorder)
                         .onChange(of: liveEditText) { newValue in
                             characterCount = newValue.count
                             isValidInput = newValue.count >= 3 && !newValue.trimmingCharacters(in: .whitespaces).isEmpty
