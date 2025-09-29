@@ -2,6 +2,9 @@
 //  Cornucopia – (C) Dr. Lauer Information Technology
 //
 import SwiftUI
+#if os(iOS)
+import UIKit
+#endif
 
 public struct ConfirmationDialogAction {
     let title: String
@@ -26,10 +29,21 @@ struct ConfirmationDialogView: View {
     @Environment(\.colorScheme) private var colorScheme
     @FocusState private var isInputFocused: Bool
 
+    private var bottomSafeArea: CGFloat {
+        #if os(iOS)
+        return UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap { $0.windows }
+            .first(where: { $0.isKeyWindow })?.safeAreaInsets.bottom ?? 0
+        #else
+        return 0
+        #endif
+    }
+
     var body: some View {
         dialogCard
+            .padding(.top, 30)
             .padding(.horizontal, 20)
-            .padding(.vertical, 20)
             .background(
                 sheetBackground
                     .ignoresSafeArea()
@@ -38,16 +52,21 @@ struct ConfirmationDialogView: View {
 
     private var dialogCard: some View {
         VStack(spacing: 0) {
-            headerSection
-            actionSection
+            // Group inner content (header + actions)
+            VStack(spacing: 0) {
+                headerSection
+                actionSection
+            }
+            // Nudge down by the brand separator height for visual centering
+            .padding(.top, 8)
+
             cancelSeparator
             cancelSection
         }
         .frame(maxWidth: .infinity)
-        .padding(.bottom, 24)
         .background(dialogBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.55 : 0.12), radius: 26, y: 14)
+        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.55 : 0.12), radius: 26, y: 0)
         .onAppear {
             if actionsContent != nil {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -78,8 +97,7 @@ struct ConfirmationDialogView: View {
             }
         }
         .padding(.horizontal, 20)
-        .padding(.top, 24)
-        .padding(.bottom, title.isEmpty && message == nil ? 16 : 20)
+        .padding(.vertical, 20)
     }
 
     @ViewBuilder
@@ -96,8 +114,8 @@ struct ConfirmationDialogView: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 20)
                 .background(inputFieldBackground)
+                // Outer gap so the rounded field block doesn’t hug the section edges
                 .padding(.horizontal, 16)
-                .padding(.bottom, actions.isEmpty ? 0 : 12)
             }
 
             // Then show action buttons
@@ -112,6 +130,8 @@ struct ConfirmationDialogView: View {
                 }
             }
         }
+        // Remove extra bottom padding; separator immediately follows
+        .padding(.bottom, 0)
     }
 
     @ViewBuilder
@@ -141,7 +161,7 @@ struct ConfirmationDialogView: View {
             Divider()
                 .background(separatorColor)
         } else {
-            // Light mode: gradient separator
+            // Light mode: brand-style 8pt translucent band above Cancel
             Rectangle()
                 .fill(separatorColor)
                 .frame(height: 8)
