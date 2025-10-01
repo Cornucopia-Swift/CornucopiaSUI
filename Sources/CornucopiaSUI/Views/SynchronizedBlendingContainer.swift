@@ -466,5 +466,56 @@ private struct NonSyncedContainer: View {
     }
     return Demo()
 }
+
+// 5) MarqueeScrollView integration with static layout
+@available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *)
+#Preview("Container – MarqueeScrollView Integration") {
+    struct Demo: View {
+        @State private var duration: Double = 2.0
+        var body: some View {
+            VStack(spacing: 16) {
+                VStack(spacing: 4) {
+                    HStack {
+                        Text("Duration:")
+                        Spacer()
+                        Text("\(max(0.1, duration), specifier: "%.1f")s")
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                    }
+                    .font(.caption)
+
+                    Slider(value: $duration, in: 0...10, step: 0.1)
+                }
+                .padding()
+                .background(.regularMaterial)
+                .cornerRadius(8)
+                .shadow(radius: 2)
+                .padding(.bottom, 24)
+
+                Text("Static layout with Label and MarqueeScrollView")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                SynchronizedBlendingContainer(duration: max(0.1, duration), dynamicLayout: false,
+                                               { Label("Settings", systemImage: "gear") },
+                                               { MarqueeScrollView(startDelay: 0) {
+                                                   Label("Very Long Configuration and Advanced Settings Options", systemImage: "slider.horizontal.3")
+                                               } })
+                    .frame(width: 200)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 4)
+                            .stroke(Color.purple.opacity(0.6), lineWidth: 1)
+                    )
+                    .padding()
+                    .background(Color.purple.opacity(0.08))
+                    .cornerRadius(12)
+
+                Spacer()
+            }
+            .padding()
+        }
+    }
+    return Demo()
+}
 #endif
 
