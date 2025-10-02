@@ -40,10 +40,19 @@ struct ConfirmationDialogView: View {
         #endif
     }
 
+    private var bottomPadding: CGFloat {
+        #if os(iOS)
+        return UIDevice.current.userInterfaceIdiom == .pad ? 30 : 0
+        #else
+        return 0
+        #endif
+    }
+
     var body: some View {
         dialogCard
             .padding(.top, 30)
             .padding(.horizontal, 20)
+            .padding(.bottom, bottomPadding)
             .background(
                 sheetBackground
                     .ignoresSafeArea()
