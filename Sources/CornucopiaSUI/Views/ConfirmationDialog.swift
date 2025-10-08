@@ -507,7 +507,9 @@ struct ProfessionalButtonStyle: ButtonStyle {
                 message: "Enter a new name for this item:"
             ) {
                 TextField("Enter name", text: $textFieldValue)
+#if os(iOS)
                     .textInputAutocapitalization(.words)
+#endif
             }
             // Demo: "On-the-fly" editing using SwiftUI bindings
             // The TextField's binding automatically updates parent state,
