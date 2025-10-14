@@ -30,6 +30,7 @@ public struct MarqueeScrollView<Content: View>: View {
     private let content: Content
     private let startDelay: Double
     private let alignment: Alignment
+    private let scrollActivationThreshold: CGFloat = 1.0
     
     @State private var animate = false
     @State private var containerSize: CGSize = .zero
@@ -58,7 +59,7 @@ public struct MarqueeScrollView<Content: View>: View {
     
     @ViewBuilder
     private var marqueeContent: some View {
-        let needsScrolling = contentSize.width > containerSize.width && containerSize.width > 0
+        let needsScrolling = shouldAnimateScroll()
         
         if needsScrolling {
             scrollingContent
@@ -127,10 +128,15 @@ public struct MarqueeScrollView<Content: View>: View {
     }
     
     private func updateAnimationState() {
-        let shouldAnimate = contentSize.width > containerSize.width && containerSize.width > 0
+        let shouldAnimate = shouldAnimateScroll()
         if animate != shouldAnimate {
             animate = shouldAnimate
         }
+    }
+    
+    private func shouldAnimateScroll() -> Bool {
+        guard containerSize.width > 0 else { return false }
+        return (contentSize.width - containerSize.width) > scrollActivationThreshold
     }
 }
 
