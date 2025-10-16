@@ -33,6 +33,7 @@ public struct MarqueeScrollView<Content: View>: View {
     private let scrollActivationThreshold: CGFloat = 1.0
     
     @State private var animate = false
+    @State private var isReady = false
     @State private var containerSize: CGSize = .zero
     @State private var contentSize: CGSize = .zero
     
@@ -53,6 +54,9 @@ public struct MarqueeScrollView<Content: View>: View {
                 proxy.size
             } action: { newSize in
                 containerSize = newSize
+                if !isReady && newSize.width > 0 && contentSize.width > 0 {
+                    isReady = true
+                }
                 updateAnimationState()
             }
     }
@@ -77,16 +81,17 @@ public struct MarqueeScrollView<Content: View>: View {
             .repeatForever(autoreverses: false)
         
         ZStack(alignment: .leading) {
+            let padding: CGFloat = 32
             // First copy
             content
                 .fixedSize(horizontal: true, vertical: false)
-                .offset(x: animate ? -contentSize.width - contentSize.height * 2 : 0)
+                .offset(x: animate ? -(contentSize.width + padding) : 0)
                 .animation(animate ? animation : .linear(duration: 0), value: animate)
             
             // Second copy for seamless loop
             content
                 .fixedSize(horizontal: true, vertical: false)
-                .offset(x: animate ? 0 : contentSize.width + contentSize.height * 2)
+                .offset(x: animate ? 0 : contentSize.width + padding)
                 .animation(animate ? animation : .linear(duration: 0), value: animate)
         }
         .frame(width: containerSize.width, alignment: .leading)
@@ -98,6 +103,9 @@ public struct MarqueeScrollView<Content: View>: View {
                     proxy.size
                 } action: { newSize in
                     contentSize = newSize
+                    if !isReady && newSize.width > 0 && containerSize.width > 0 {
+                        isReady = true
+                    }
                     updateAnimationState()
                 }
                 .opacity(0)
@@ -128,14 +136,14 @@ public struct MarqueeScrollView<Content: View>: View {
     }
     
     private func updateAnimationState() {
-        let shouldAnimate = shouldAnimateScroll()
-        if animate != shouldAnimate {
-            animate = shouldAnimate
+        let shouldAnimate = self.shouldAnimateScroll()
+        if self.animate != shouldAnimate {
+            self.animate = shouldAnimate
         }
     }
     
     private func shouldAnimateScroll() -> Bool {
-        guard containerSize.width > 0 else { return false }
+        guard isReady, containerSize.width > 0 else { return false }
         return (contentSize.width - containerSize.width) > scrollActivationThreshold
     }
 }
