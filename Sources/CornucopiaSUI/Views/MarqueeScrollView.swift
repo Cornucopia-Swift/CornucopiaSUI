@@ -36,6 +36,7 @@ public struct MarqueeScrollView<Content: View>: View {
     @State private var isReady = false
     @State private var containerSize: CGSize = .zero
     @State private var contentSize: CGSize = .zero
+    @State private var contentHeight: CGFloat = 0
     
     /// Creates a marquee scroll view with the given content.
     public init(
@@ -54,7 +55,7 @@ public struct MarqueeScrollView<Content: View>: View {
                 proxy.size
             } action: { newSize in
                 containerSize = newSize
-                if !isReady && newSize.width > 0 && contentSize.width > 0 {
+                if !isReady && newSize.width > 0 && contentSize.width > 0 && contentHeight > 0 {
                     isReady = true
                 }
                 updateAnimationState()
@@ -84,12 +85,14 @@ public struct MarqueeScrollView<Content: View>: View {
             let padding: CGFloat = 32
             // First copy
             content
+                .frame(height: contentHeight)
                 .fixedSize(horizontal: true, vertical: false)
                 .offset(x: animate ? -(contentSize.width + padding) : 0)
                 .animation(animate ? animation : .linear(duration: 0), value: animate)
             
             // Second copy for seamless loop
             content
+                .frame(height: contentHeight)
                 .fixedSize(horizontal: true, vertical: false)
                 .offset(x: animate ? 0 : contentSize.width + padding)
                 .animation(animate ? animation : .linear(duration: 0), value: animate)
@@ -103,7 +106,8 @@ public struct MarqueeScrollView<Content: View>: View {
                     proxy.size
                 } action: { newSize in
                     contentSize = newSize
-                    if !isReady && newSize.width > 0 && containerSize.width > 0 {
+                    contentHeight = newSize.height
+                    if !isReady && newSize.width > 0 && containerSize.width > 0 && newSize.height > 0 {
                         isReady = true
                     }
                     updateAnimationState()
@@ -130,6 +134,10 @@ public struct MarqueeScrollView<Content: View>: View {
                         proxy.size
                     } action: { newSize in
                         contentSize = newSize
+                        contentHeight = newSize.height
+                        if !isReady && newSize.width > 0 && containerSize.width > 0 && newSize.height > 0 {
+                            isReady = true
+                        }
                     }
                     .opacity(0)
             }
