@@ -31,128 +31,186 @@ public struct MarqueeScrollView<Content: View>: View {
     private let startDelay: Double
     private let alignment: Alignment
     private let scrollActivationThreshold: CGFloat = 1.0
-    
-    @State private var animate = false
-    @State private var isReady = false
+    private let gap: CGFloat = 32
+    private let pointsPerSecond: CGFloat = 30
+    private let loopPause: Double
+
     @State private var containerSize: CGSize = .zero
     @State private var contentSize: CGSize = .zero
-    @State private var contentHeight: CGFloat = 0
     
     /// Creates a marquee scroll view with the given content.
     public init(
         startDelay: Double = 3.0,
+        loopPause: Double? = nil,
         alignment: Alignment = .leading,
         @ViewBuilder content: () -> Content
     ) {
         self.content = content()
         self.startDelay = startDelay
         self.alignment = alignment
+        self.loopPause = max(0, loopPause ?? startDelay)
     }
     
     public var body: some View {
-        marqueeContent
-            .onGeometryChange(for: CGSize.self) { proxy in
-                proxy.size
-            } action: { newSize in
-                containerSize = newSize
-                if !isReady && newSize.width > 0 && contentSize.width > 0 && contentHeight > 0 {
-                    isReady = true
-                }
-                updateAnimationState()
+        ZStack(alignment: alignment) {
+            if shouldAnimate {
+                MarqueeTicker(
+                    content: content,
+                    contentSize: contentSize,
+                    containerWidth: containerSize.width,
+                    startDelay: startDelay,
+                    loopPause: loopPause,
+                    gap: gap,
+                    pointsPerSecond: pointsPerSecond
+                )
+                .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                content
+                    .frame(maxWidth: .infinity, alignment: alignment)
             }
-    }
-    
-    @ViewBuilder
-    private var marqueeContent: some View {
-        let needsScrolling = shouldAnimateScroll()
-        
-        if needsScrolling {
-            scrollingContent
-                .clipped()
-        } else {
-            staticContent
         }
-    }
-    
-    @ViewBuilder
-    private var scrollingContent: some View {
-        let animation = Animation
-            .linear(duration: Double(contentSize.width) / 30)
-            .delay(startDelay)
-            .repeatForever(autoreverses: false)
-        
-        ZStack(alignment: .leading) {
-            let padding: CGFloat = 32
-            // First copy
-            content
-                .frame(height: contentHeight)
-                .fixedSize(horizontal: true, vertical: false)
-                .offset(x: animate ? -(contentSize.width + padding) : 0)
-                .animation(animate ? animation : .linear(duration: 0), value: animate)
-            
-            // Second copy for seamless loop
-            content
-                .frame(height: contentHeight)
-                .fixedSize(horizontal: true, vertical: false)
-                .offset(x: animate ? 0 : contentSize.width + padding)
-                .animation(animate ? animation : .linear(duration: 0), value: animate)
-        }
-        .frame(width: containerSize.width, alignment: .leading)
-        .background {
-            // Invisible copy for measuring content size
+        .frame(maxWidth: .infinity, alignment: alignment)
+        .frame(height: effectiveHeight, alignment: alignment)
+        .background(
+            Color.clear
+                .CC_measureSize { size in
+                    if containerSize != size {
+                        containerSize = size
+                    }
+                }
+        )
+        .overlay(alignment: .topLeading) {
             content
                 .fixedSize()
-                .onGeometryChange(for: CGSize.self) { proxy in
-                    proxy.size
-                } action: { newSize in
-                    contentSize = newSize
-                    contentHeight = newSize.height
-                    if !isReady && newSize.width > 0 && containerSize.width > 0 && newSize.height > 0 {
-                        isReady = true
+                .CC_measureSize { size in
+                    if contentSize != size {
+                        contentSize = size
                     }
-                    updateAnimationState()
                 }
-                .opacity(0)
-        }
-        .onAppear {
-            updateAnimationState()
-        }
-        .onDisappear {
-            animate = false
+                .hidden()
+                .allowsHitTesting(false)
         }
     }
-    
+
+    private var effectiveHeight: CGFloat? {
+        contentSize.height > 0 ? contentSize.height : nil
+    }
+
+    private var shouldAnimate: Bool {
+        MarqueeScrollLogic.shouldAnimate(
+            contentWidth: contentSize.width,
+            containerWidth: containerSize.width,
+            threshold: scrollActivationThreshold
+        )
+    }
+}
+
+@available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *)
+private struct MarqueeTicker<Content: View>: View {
+    let content: Content
+    let contentSize: CGSize
+    let containerWidth: CGFloat
+    let startDelay: Double
+    let loopPause: Double
+    let gap: CGFloat
+    let pointsPerSecond: CGFloat
+
+    @State private var anchorDate: Date?
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 60.0)) { context in
+            let anchor = preparedAnchor(for: context.date)
+            timelineContent(context: context, anchor: anchor)
+        }
+        .onChange(of: contentSize) { _ in reset() }
+        .onChange(of: containerWidth) { _ in reset() }
+        .onChange(of: startDelay) { _ in reset() }
+        .onDisappear { anchorDate = nil }
+    }
+
     @ViewBuilder
-    private var staticContent: some View {
+    private func marqueeCopy(id: String) -> some View {
         content
-            .frame(maxWidth: .infinity, alignment: alignment)
-            .background {
-                // Invisible copy for measuring content size
-                content
-                    .fixedSize()
-                    .onGeometryChange(for: CGSize.self) { proxy in
-                        proxy.size
-                    } action: { newSize in
-                        contentSize = newSize
-                        contentHeight = newSize.height
-                        if !isReady && newSize.width > 0 && containerSize.width > 0 && newSize.height > 0 {
-                            isReady = true
-                        }
-                    }
-                    .opacity(0)
-            }
+            .fixedSize(horizontal: true, vertical: false)
+            .padding(.trailing, gap)
+            .frame(height: contentSize.height, alignment: .leading)
+            .id(id)
     }
-    
-    private func updateAnimationState() {
-        let shouldAnimate = self.shouldAnimateScroll()
-        if self.animate != shouldAnimate {
-            self.animate = shouldAnimate
+
+    private func reset() {
+        anchorDate = nil
+    }
+
+    @ViewBuilder
+    private func timelineContent(context: TimelineViewDefaultContext, anchor: Date) -> some View {
+        let cycleLength = contentSize.width + gap
+        let width = containerWidth
+
+        if cycleLength <= 0 || width <= 0 {
+            content
+                .fixedSize(horizontal: true, vertical: false)
+                .frame(width: width, height: contentSize.height, alignment: .leading)
+        } else {
+            let now = context.date
+            let elapsed = max(0, now.timeIntervalSince(anchor) - startDelay)
+            let calculator = MarqueeAnimationCalculator(
+                cycleLength: cycleLength,
+                pointsPerSecond: pointsPerSecond,
+                loopPause: loopPause
+            )
+            let normalizedOffset = calculator.offset(for: elapsed)
+
+            ZStack(alignment: .leading) {
+                marqueeCopy(id: "first")
+                    .offset(x: normalizedOffset)
+                marqueeCopy(id: "second")
+                    .offset(x: normalizedOffset + cycleLength)
+            }
+            .frame(width: width, height: contentSize.height, alignment: .leading)
+            .clipped()
         }
     }
-    
-    private func shouldAnimateScroll() -> Bool {
-        guard isReady, containerSize.width > 0 else { return false }
-        return (contentSize.width - containerSize.width) > scrollActivationThreshold
+
+    private func preparedAnchor(for now: Date) -> Date {
+        let anchor = anchorDate ?? now
+        if anchorDate == nil {
+            DispatchQueue.main.async {
+                anchorDate = now
+            }
+        }
+        return anchor
+    }
+}
+
+struct MarqueeScrollLogic {
+    static func shouldAnimate(contentWidth: CGFloat, containerWidth: CGFloat, threshold: CGFloat) -> Bool {
+        guard contentWidth > 0, containerWidth > 0 else { return false }
+        return (contentWidth - containerWidth) > threshold
+    }
+}
+
+struct MarqueeAnimationCalculator {
+    let cycleLength: CGFloat
+    let pointsPerSecond: CGFloat
+    let loopPause: Double
+
+    func offset(for elapsed: TimeInterval) -> CGFloat {
+        guard cycleLength > 0, pointsPerSecond > 0, elapsed > 0 else { return 0 }
+
+        let pause = max(0, loopPause)
+        let travelDuration = Double(cycleLength / pointsPerSecond)
+        guard travelDuration > 0 else { return 0 }
+
+        let cycleDuration = travelDuration + pause
+        let timeInCycle = elapsed.truncatingRemainder(dividingBy: cycleDuration)
+
+        if timeInCycle < pause {
+            return 0
+        }
+
+        let travelTime = min(timeInCycle - pause, travelDuration)
+        let progress = travelTime / travelDuration
+        return -CGFloat(progress) * cycleLength
     }
 }
 
