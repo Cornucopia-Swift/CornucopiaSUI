@@ -57,35 +57,42 @@ func validateVIN(_ vin: String) -> VINTextField.ValidationState {
     }
     
     // Full VIN - validate check digit
+    let components = parseVINComponents(trimmed)
     if isValidCheckDigit(trimmed) {
-        let components = parseVINComponents(trimmed)
         return .valid(trimmed, components: components)
+    } else if let expectedCheckDigit = calculateCheckDigit(trimmed) {
+        return .validWithCheckDigitWarning(trimmed, components: components, expectedCheckDigit: expectedCheckDigit)
     } else {
-        return .invalidCheckDigit(trimmed)
+        return .validWithCheckDigitWarning(trimmed, components: components, expectedCheckDigit: "?")
     }
 }
 
-/// Validates VIN check digit (position 9)
-func isValidCheckDigit(_ vin: String) -> Bool {
-    guard vin.count == 17 else { return false }
-    
+/// Validates VIN check digit (position 9) and returns the expected check digit
+func calculateCheckDigit(_ vin: String) -> Character? {
+    guard vin.count == 17 else { return nil }
+
     var sum = 0
     for (index, char) in vin.enumerated() {
-        guard let value = vinTransliteration[char] else { return false }
+        guard let value = vinTransliteration[char] else { return nil }
         sum += value * vinWeights[index]
     }
-    
+
     let remainder = sum % 11
-    let expectedCheckDigit: Character = remainder == 10 ? "X" : Character(String(remainder))
+    return remainder == 10 ? "X" : Character(String(remainder))
+}
+
+/// Checks if the VIN check digit matches the calculated value
+func isValidCheckDigit(_ vin: String) -> Bool {
+    guard let expectedCheckDigit = calculateCheckDigit(vin) else { return false }
     let actualCheckDigit = vin[vin.index(vin.startIndex, offsetBy: 8)]
-    
+
     if actualCheckDigit != expectedCheckDigit {
         let correctedVIN = String(vin.prefix(8)) + String(expectedCheckDigit) + String(vin.suffix(8))
         let logger = Cornucopia.Core.Logger()
         logger.debug("🚗 VIN check digit validation failed - Original: \(vin), Expected digit: \(expectedCheckDigit) (actual: \(actualCheckDigit)), Suggested corrected VIN: \(correctedVIN)")
         return false
     }
-    
+
     return true
 }
 
@@ -131,8 +138,8 @@ public struct VINTextField: View {
         case incomplete(String, remaining: Int)
         case invalidCharacters(String)
         case tooLong(String)
-        case invalidCheckDigit(String)
         case valid(String, components: VINComponents)
+        case validWithCheckDigitWarning(String, components: VINComponents, expectedCheckDigit: Character)
         
         public var inputText: String {
             switch self {
@@ -140,8 +147,8 @@ public struct VINTextField: View {
             case .incomplete(let vin, _): vin
             case .invalidCharacters(let vin): vin
             case .tooLong(let vin): vin
-            case .invalidCheckDigit(let vin): vin
             case .valid(let vin, _): vin
+            case .validWithCheckDigitWarning(let vin, _, _): vin
             }
         }
         
@@ -151,8 +158,8 @@ public struct VINTextField: View {
             case .incomplete: .incomplete
             case .invalidCharacters: .invalidCharacters
             case .tooLong: .tooLong
-            case .invalidCheckDigit: .invalidCheckDigit
             case .valid: .valid
+            case .validWithCheckDigitWarning: .validWithCheckDigitWarning
             }
         }
     }
@@ -162,8 +169,8 @@ public struct VINTextField: View {
         case incomplete
         case invalidCharacters
         case tooLong
-        case invalidCheckDigit
         case valid
+        case validWithCheckDigitWarning
         
         var title: String {
             switch self {
@@ -171,8 +178,8 @@ public struct VINTextField: View {
             case .incomplete: "Incomplete VIN"
             case .invalidCharacters: "Invalid Characters"
             case .tooLong: "Too Long"
-            case .invalidCheckDigit: "Invalid Check Digit"
             case .valid: "Valid VIN"
+            case .validWithCheckDigitWarning: "Valid VIN"
             }
         }
         
@@ -182,8 +189,8 @@ public struct VINTextField: View {
             case .incomplete: "doc.text"
             case .invalidCharacters: "exclamationmark.triangle"
             case .tooLong: "exclamationmark.circle"
-            case .invalidCheckDigit: "checkmark.circle.trianglebadge.exclamationmark"
             case .valid: "checkmark.circle"
+            case .validWithCheckDigitWarning: "checkmark.circle.trianglebadge.exclamationmark"
             }
         }
         
@@ -193,8 +200,8 @@ public struct VINTextField: View {
             case .incomplete: .orange
             case .invalidCharacters: .red
             case .tooLong: .red
-            case .invalidCheckDigit: .red
             case .valid: .green
+            case .validWithCheckDigitWarning: .yellow
             }
         }
     }
@@ -314,13 +321,13 @@ public struct VINTextField: View {
                     Text("VIN Breakdown")
                         .font(.caption.weight(.medium))
                         .foregroundStyle(.secondary)
-                    
+
                     HStack(spacing: 12) {
                         VINComponentView(label: "WMI", value: components.wmi, color: .blue)
                         VINComponentView(label: "VDS", value: components.vds, color: .purple)
                         VINComponentView(label: "VIS", value: components.vis, color: .green)
                     }
-                    
+
                     if let modelYear = components.modelYear {
                         HStack(spacing: 6) {
                             Image(systemName: "calendar")
@@ -331,6 +338,39 @@ public struct VINTextField: View {
                                 .foregroundStyle(.primary)
                         }
                     }
+                }
+            } else if case .validWithCheckDigitWarning(let vin, let components, let expectedCheckDigit) = validationState {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("VIN Breakdown")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+
+                    HStack(spacing: 12) {
+                        VINComponentView(label: "WMI", value: components.wmi, color: .blue)
+                        VINComponentView(label: "VDS", value: components.vds, color: .purple)
+                        VINComponentView(label: "VIS", value: components.vis, color: .green)
+                    }
+
+                    if let modelYear = components.modelYear {
+                        HStack(spacing: 6) {
+                            Image(systemName: "calendar")
+                                .foregroundStyle(.orange)
+                                .font(.caption)
+                            Text("Model Year: \(modelYear)")
+                                .font(.footnote)
+                                .foregroundStyle(.primary)
+                        }
+                    }
+
+                    HStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.yellow)
+                            .font(.caption)
+                        Text("Check digit mismatch (expected: \(String(expectedCheckDigit)))")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.top, 4)
                 }
             } else if case .incomplete(let vin, let remaining) = validationState, !vin.isEmpty {
                 // Show partial breakdown for incomplete VIN
@@ -367,10 +407,10 @@ public struct VINTextField: View {
                     Text("VIN cannot contain I, O, or Q characters")
                 case .tooLong:
                     Text("VIN must be exactly 17 characters")
-                case .invalidCheckDigit:
-                    Text("Invalid check digit - VIN may contain errors")
                 case .valid:
                     Text("Valid VIN with correct check digit")
+                case .validWithCheckDigitWarning:
+                    Text("Check digit validation is optional in some regions")
                 }
             }
             .font(.footnote)
@@ -534,8 +574,8 @@ struct ValidationStateDemo: View {
         case .incomplete(_, let remaining): "Incomplete (\(remaining) remaining)"
         case .invalidCharacters: "Invalid Characters"
         case .tooLong: "Too Long"
-        case .invalidCheckDigit: "Invalid Check Digit"
         case .valid: "Valid VIN"
+        case .validWithCheckDigitWarning(_, _, let expectedCheckDigit): "Valid VIN (check digit warning: expected \(expectedCheckDigit))"
         }
     }
 }
