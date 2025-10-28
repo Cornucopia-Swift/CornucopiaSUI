@@ -35,9 +35,22 @@ public struct MarqueeScrollView<Content: View>: View {
     private let pointsPerSecond: CGFloat = 30
     private let loopPause: Double
 
-    @State private var containerSize: CGSize = .zero
-    @State private var contentSize: CGSize = .zero
-    
+    @State private var containerSize: CGSize = .zero {
+        didSet {
+            if containerSize != oldValue && containerSize.width > 0 {
+                print("DEBUG: MarqueeScrollView container: \(String(format: "%.0f", containerSize.width))w × \(String(format: "%.0f", containerSize.height))h")
+            }
+        }
+    }
+    @State private var contentSize: CGSize = .zero {
+        didSet {
+            if contentSize != oldValue && contentSize.width > 0 {
+                let willScroll = shouldAnimate
+                print("DEBUG: MarqueeScrollView content: \(String(format: "%.0f", contentSize.width))w, container: \(String(format: "%.0f", containerSize.width))w → \(willScroll ? "SCROLLS" : "static")")
+            }
+        }
+    }
+
     /// Creates a marquee scroll view with the given content.
     public init(
         startDelay: Double = 3.0,
@@ -52,8 +65,10 @@ public struct MarqueeScrollView<Content: View>: View {
     }
     
     public var body: some View {
-        ZStack(alignment: alignment) {
-            if shouldAnimate {
+        let _shouldAnimate = shouldAnimate
+
+        return ZStack(alignment: alignment) {
+            if _shouldAnimate {
                 MarqueeTicker(
                     content: content,
                     contentSize: contentSize,
@@ -122,9 +137,9 @@ private struct MarqueeTicker<Content: View>: View {
             let anchor = preparedAnchor(for: context.date)
             timelineContent(context: context, anchor: anchor)
         }
-        .onChange(of: contentSize) { _ in reset() }
-        .onChange(of: containerWidth) { _ in reset() }
-        .onChange(of: startDelay) { _ in reset() }
+        .onChange(of: contentSize) { _, _ in reset() }
+        .onChange(of: containerWidth) { _, _ in reset() }
+        .onChange(of: startDelay) { _, _ in reset() }
         .onDisappear { anchorDate = nil }
     }
 
