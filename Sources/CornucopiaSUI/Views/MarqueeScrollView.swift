@@ -35,21 +35,9 @@ public struct MarqueeScrollView<Content: View>: View {
     private let pointsPerSecond: CGFloat = 30
     private let loopPause: Double
 
-    @State private var containerSize: CGSize = .zero {
-        didSet {
-            if containerSize != oldValue && containerSize.width > 0 {
-                print("DEBUG: MarqueeScrollView container: \(String(format: "%.0f", containerSize.width))w × \(String(format: "%.0f", containerSize.height))h")
-            }
-        }
-    }
-    @State private var contentSize: CGSize = .zero {
-        didSet {
-            if contentSize != oldValue && contentSize.width > 0 {
-                let willScroll = shouldAnimate
-                print("DEBUG: MarqueeScrollView content: \(String(format: "%.0f", contentSize.width))w, container: \(String(format: "%.0f", containerSize.width))w → \(willScroll ? "SCROLLS" : "static")")
-            }
-        }
-    }
+    @State private var containerSize: CGSize = .zero
+    @State private var contentSize: CGSize = .zero
+    @State private var measurementVersion: Int = 0
 
     /// Creates a marquee scroll view with the given content.
     public init(
@@ -86,21 +74,18 @@ public struct MarqueeScrollView<Content: View>: View {
         }
         .frame(maxWidth: .infinity, alignment: alignment)
         .frame(height: effectiveHeight, alignment: alignment)
-        .background(
-            Color.clear
-                .CC_measureSize { size in
-                    if containerSize != size {
-                        containerSize = size
-                    }
-                }
-        )
+        .onGeometryChange(for: CGSize.self) { proxy in
+            proxy.size
+        } action: { newSize in
+            updateContainerSize(newSize)
+        }
         .overlay(alignment: .topLeading) {
             content
                 .fixedSize()
-                .CC_measureSize { size in
-                    if contentSize != size {
-                        contentSize = size
-                    }
+                .onGeometryChange(for: CGSize.self) { proxy in
+                    proxy.size
+                } action: { newSize in
+                    updateContentSize(newSize)
                 }
                 .hidden()
                 .allowsHitTesting(false)
@@ -117,6 +102,33 @@ public struct MarqueeScrollView<Content: View>: View {
             containerWidth: containerSize.width,
             threshold: scrollActivationThreshold
         )
+    }
+
+    private func updateContainerSize(_ size: CGSize) {
+        guard containerSize != size else { return }
+        containerSize = size
+        measurementVersion += 1
+        scheduleDebouncedDebugPrint()
+    }
+
+    private func updateContentSize(_ size: CGSize) {
+        guard contentSize != size else { return }
+        contentSize = size
+        measurementVersion += 1
+        scheduleDebouncedDebugPrint()
+    }
+
+    private func scheduleDebouncedDebugPrint() {
+        Task { @MainActor in
+            let version = measurementVersion
+            try? await Task.sleep(for: .milliseconds(5))
+
+            guard version == measurementVersion else { return }
+            guard containerSize.width > 0, contentSize.width > 0 else { return }
+
+            let willScroll = shouldAnimate
+            print("DEBUG: MarqueeScrollView content: \(String(format: "%.0f", contentSize.width))w, container: \(String(format: "%.0f", containerSize.width))w → \(willScroll ? "SCROLLS" : "static")")
+        }
     }
 }
 
