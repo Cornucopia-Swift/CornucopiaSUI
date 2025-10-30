@@ -30,7 +30,7 @@ public struct MarqueeScrollView<Content: View>: View {
     private let content: Content
     private let startDelay: Double
     private let alignment: Alignment
-    private let scrollActivationThreshold: CGFloat = 1.0
+    private let scrollActivationThreshold: CGFloat = -1.0
     private let gap: CGFloat = 32
     private let pointsPerSecond: CGFloat = 30
     private let loopPause: Double
