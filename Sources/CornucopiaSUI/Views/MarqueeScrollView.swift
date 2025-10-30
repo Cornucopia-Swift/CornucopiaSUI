@@ -34,6 +34,7 @@ public struct MarqueeScrollView<Content: View>: View {
     private let gap: CGFloat = 32
     private let pointsPerSecond: CGFloat = 30
     private let loopPause: Double
+    private let measurementTolerance: CGFloat = 0.5
 
     @State private var containerSize: CGSize = .zero
     @State private var contentSize: CGSize = .zero
@@ -105,20 +106,25 @@ public struct MarqueeScrollView<Content: View>: View {
     }
 
     private func updateContainerSize(_ size: CGSize) {
-        guard containerSize != size else { return }
-        containerSize = size
+        let sanitizedSize = size.sanitizedForMarquee()
+        guard sanitizedSize.isFinite else { return }
+        guard !containerSize.isApproximatelyEqual(to: sanitizedSize, tolerance: measurementTolerance) else { return }
+        containerSize = sanitizedSize
         measurementVersion += 1
         scheduleDebouncedDebugPrint()
     }
 
     private func updateContentSize(_ size: CGSize) {
-        guard contentSize != size else { return }
-        contentSize = size
+        let sanitizedSize = size.sanitizedForMarquee()
+        guard sanitizedSize.isFinite else { return }
+        guard !contentSize.isApproximatelyEqual(to: sanitizedSize, tolerance: measurementTolerance) else { return }
+        contentSize = sanitizedSize
         measurementVersion += 1
         scheduleDebouncedDebugPrint()
     }
 
     private func scheduleDebouncedDebugPrint() {
+#if DEBUG
         Task { @MainActor in
             let version = measurementVersion
             try? await Task.sleep(for: .milliseconds(5))
@@ -129,6 +135,7 @@ public struct MarqueeScrollView<Content: View>: View {
             let willScroll = shouldAnimate
             print("DEBUG: MarqueeScrollView content: \(String(format: "%.0f", contentSize.width))w, container: \(String(format: "%.0f", containerSize.width))w → \(willScroll ? "SCROLLS" : "static")")
         }
+#endif
     }
 }
 
@@ -168,6 +175,18 @@ private struct MarqueeTicker<Content: View>: View {
         anchorDate = nil
     }
 
+    private func preparedAnchor(for now: Date) -> Date {
+        if let anchorDate {
+            return anchorDate
+        }
+
+        let anchor = now
+        DispatchQueue.main.async {
+            self.anchorDate = anchor
+        }
+        return anchor
+    }
+
     @ViewBuilder
     private func timelineContent(context: TimelineViewDefaultContext, anchor: Date) -> some View {
         let cycleLength = contentSize.width + gap
@@ -198,15 +217,6 @@ private struct MarqueeTicker<Content: View>: View {
         }
     }
 
-    private func preparedAnchor(for now: Date) -> Date {
-        let anchor = anchorDate ?? now
-        if anchorDate == nil {
-            DispatchQueue.main.async {
-                anchorDate = now
-            }
-        }
-        return anchor
-    }
 }
 
 struct MarqueeScrollLogic {
@@ -238,6 +248,29 @@ struct MarqueeAnimationCalculator {
         let travelTime = min(timeInCycle - pause, travelDuration)
         let progress = travelTime / travelDuration
         return -CGFloat(progress) * cycleLength
+    }
+}
+
+private extension CGSize {
+    var isFinite: Bool {
+        width.isFinite && height.isFinite
+    }
+
+    func isApproximatelyEqual(to other: CGSize, tolerance: CGFloat) -> Bool {
+        abs(width - other.width) <= tolerance && abs(height - other.height) <= tolerance
+    }
+
+    func sanitizedForMarquee() -> CGSize {
+        CGSize(
+            width: Self.sanitizedDimension(width),
+            height: Self.sanitizedDimension(height)
+        )
+    }
+
+    private static func sanitizedDimension(_ value: CGFloat) -> CGFloat {
+        guard value.isFinite else { return 0 }
+        guard !value.isNaN else { return 0 }
+        return max(0, value)
     }
 }
 
