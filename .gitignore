@@ -12,6 +12,7 @@ AntiCrack-InfoScanner-Result.h
 .smbdelete*
 .idea
 .swiftpm
+.vscode
 /.build
 /Packages
 project.xcworkspace
