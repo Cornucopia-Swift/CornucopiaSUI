@@ -1,7 +1,7 @@
 //
 //  Cornucopia – (C) Dr. Lauer Information Technology
 //
-#if canImport(UIKit)
+#if os(iOS)
 import Combine
 import UIKit
 

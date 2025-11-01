@@ -2,7 +2,7 @@
 //  Cornucopia – (C) Dr. Lauer Information Technology
 //
 
-#if os(iOS) || os(macOS)
+#if os(iOS) || os(macOS) || os(tvOS)
 import SwiftUI
 import AVKit
 #if canImport(UIKit)

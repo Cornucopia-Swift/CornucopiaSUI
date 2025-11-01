@@ -1,6 +1,7 @@
 //
 //  Cornucopia – (C) Dr. Lauer Information Technology
 //
+#if os(iOS)
 import SwiftUI
 
 public struct CC_ConfirmationDialogButton: View {
@@ -127,16 +128,21 @@ public extension View {
 
     private static func extractActions<A: View>(from view: A) -> [ConfirmationDialogAction] {
         var actions: [ConfirmationDialogAction] = []
-        _ = Mirror(reflecting: view)
 
-        func processView(_ view: Any) {
-            if let dialogButton = view as? CC_ConfirmationDialogButton {
-                actions.append(ConfirmationDialogAction(dialogButton.title, role: dialogButton.role, action: dialogButton.action))
-            } else {
-                let viewMirror = Mirror(reflecting: view)
-                for child in viewMirror.children {
-                    processView(child.value)
-                }
+        func processView(_ value: Any) {
+            if let dialogButton = value as? CC_ConfirmationDialogButton {
+                actions.append(
+                    ConfirmationDialogAction(
+                        dialogButton.title,
+                        role: dialogButton.role,
+                        action: dialogButton.action
+                    )
+                )
+                return
+            }
+
+            for child in Mirror(reflecting: value).children {
+                processView(child.value)
             }
         }
 
@@ -146,20 +152,21 @@ public extension View {
 
     private static func extractText<V: View>(from view: V) -> String? {
         let mirror = Mirror(reflecting: view)
+
         for child in mirror.children {
             if let text = child.value as? Text {
                 let textMirror = Mirror(reflecting: text)
-                for textChild in textMirror.children {
-                    if textChild.label == "storage" {
-                        let storageMirror = Mirror(reflecting: textChild.value)
-                        if let firstChild = storageMirror.children.first,
-                           let verbatimText = firstChild.value as? String {
-                            return verbatimText
-                        }
+                for textChild in textMirror.children where textChild.label == "storage" {
+                    let storageMirror = Mirror(reflecting: textChild.value)
+                    if let firstChild = storageMirror.children.first,
+                       let verbatimText = firstChild.value as? String {
+                        return verbatimText
                     }
                 }
             }
         }
+
         return nil
     }
 }
+#endif

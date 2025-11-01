@@ -2,7 +2,7 @@
 //  Cornucopia – (C) Dr. Lauer Information Technology
 //
 import SwiftUI
-#if os(iOS)
+#if os(iOS) || os(tvOS)
 import UIKit
 #endif
 
@@ -18,6 +18,7 @@ public struct ConfirmationDialogAction {
     }
 }
 
+#if os(iOS)
 struct ConfirmationDialogView: View {
     let title: String
     let message: String?
@@ -30,7 +31,7 @@ struct ConfirmationDialogView: View {
     @FocusState private var isInputFocused: Bool
 
     private var bottomSafeArea: CGFloat {
-        #if os(iOS)
+        #if os(iOS) || os(tvOS)
         return UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
             .flatMap { $0.windows }
@@ -220,6 +221,8 @@ struct ConfirmationDialogView: View {
     private var backgroundColor: Color {
         #if os(iOS)
         return Color(UIColor.systemBackground)
+        #elseif os(tvOS)
+        return colorScheme == .dark ? Color(white: 0.15) : Color(white: 0.95)
         #else
         return Color(NSColor.controlBackgroundColor)
         #endif
@@ -228,6 +231,8 @@ struct ConfirmationDialogView: View {
     private var secondaryBackgroundColor: Color {
         #if os(iOS)
         return Color(UIColor.secondarySystemBackground)
+        #elseif os(tvOS)
+        return colorScheme == .dark ? Color(white: 0.1) : Color(white: 1.0)
         #else
         return Color(NSColor.controlBackgroundColor)
         #endif
@@ -236,6 +241,8 @@ struct ConfirmationDialogView: View {
     private var separatorColor: Color {
         #if os(iOS)
         return Color(UIColor.separator)
+        #elseif os(tvOS)
+        return colorScheme == .dark ? Color(white: 0.3) : Color(white: 0.8)
         #else
         return Color(NSColor.separatorColor)
         #endif
@@ -398,12 +405,13 @@ struct ProfessionalButtonStyle: ButtonStyle {
     private var backgroundColor: Color {
         #if os(iOS)
         return Color(UIColor.systemBackground)
+        #elseif os(tvOS)
+        return colorScheme == .dark ? Color(white: 0.15) : Color(white: 0.95)
         #else
         return Color(NSColor.controlBackgroundColor)
         #endif
     }
 }
-
 
 #Preview("Custom Confirmation Dialog") {
     struct ConfirmationDialogDemo: View {
@@ -507,9 +515,7 @@ struct ProfessionalButtonStyle: ButtonStyle {
                 message: "Enter a new name for this item:"
             ) {
                 TextField("Enter name", text: $textFieldValue)
-#if os(iOS)
                     .textInputAutocapitalization(.words)
-#endif
             }
             // Demo: "On-the-fly" editing using SwiftUI bindings
             // The TextField's binding automatically updates parent state,
@@ -552,3 +558,4 @@ struct ProfessionalButtonStyle: ButtonStyle {
 
     return ConfirmationDialogDemo()
 }
+#endif

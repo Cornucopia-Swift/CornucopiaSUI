@@ -123,8 +123,10 @@ extension View {
 }
 
 #if DEBUG
+/*
 #Preview("Blink - Comprehensive") {
     struct BlinkShowcase: View {
+        @Environment(\.colorScheme) private var colorScheme
         @State private var globalBlinkingEnabled = true
         @State private var customRepeatCount = 5
         @State private var selectedDuration = 1.0
@@ -220,8 +222,10 @@ extension View {
                                     .foregroundStyle(.blue)
                             }
 
+#if !os(tvOS)
                             Slider(value: $selectedDuration, in: 0.2...3.0, step: 0.1)
                                 .tint(.blue)
+#endif
 
                             // Single demo element that responds to duration changes
                             RoundedRectangle(cornerRadius: 12)
@@ -563,6 +567,8 @@ extension View {
             }
             #if os(iOS)
             .background(Color(uiColor: .systemGroupedBackground))
+            #elseif os(tvOS)
+            .background(colorScheme == .dark ? Color(white: 0.1) : Color(white: 0.95))
             #else
             .background(Color(nsColor: .controlBackgroundColor))
             #endif
@@ -571,4 +577,5 @@ extension View {
 
     return BlinkShowcase()
 }
+*/
 #endif

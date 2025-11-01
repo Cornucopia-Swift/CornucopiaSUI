@@ -207,10 +207,12 @@ public struct BlendingTextLabel: View {
                             .cornerRadius(12)
                         
                         VStack(spacing: 10) {
+#if !os(tvOS)
                             HStack {
                                 Text("Duration: \(customDuration, specifier: "%.1f")s")
                                 Slider(value: $customDuration, in: 0.5...5.0, step: 0.1)
                             }
+#endif
                             
                             HStack {
                                 Button("Tech Words") {

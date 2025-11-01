@@ -264,7 +264,9 @@ private struct NonSyncedContainer: View {
                         }
                         .font(.caption)
                         
-                        Slider(value: $duration, in: 0...10, step: 0.1)
+    #if !os(tvOS)
+                    Slider(value: $duration, in: 0...10, step: 0.1)
+#endif
                     }
                 }
                 .padding()
@@ -313,7 +315,9 @@ private struct NonSyncedContainer: View {
                         }
                         .font(.caption)
                         
-                        Slider(value: $duration, in: 0...10, step: 0.1)
+    #if !os(tvOS)
+                    Slider(value: $duration, in: 0...10, step: 0.1)
+#endif
                     }
                 }
                 .padding()
@@ -365,7 +369,9 @@ private struct NonSyncedContainer: View {
                         }
                         .font(.caption)
                         
-                        Slider(value: $duration, in: 0...10, step: 0.1)
+    #if !os(tvOS)
+                    Slider(value: $duration, in: 0...10, step: 0.1)
+#endif
                     }
                 }
                 .padding()
@@ -419,7 +425,9 @@ private struct NonSyncedContainer: View {
                         }
                         .font(.caption)
                         
-                        Slider(value: $duration, in: 0...10, step: 0.1)
+    #if !os(tvOS)
+                    Slider(value: $duration, in: 0...10, step: 0.1)
+#endif
                     }
                 }
                 .padding()
@@ -484,7 +492,9 @@ private struct NonSyncedContainer: View {
                     }
                     .font(.caption)
 
+#if !os(tvOS)
                     Slider(value: $duration, in: 0...10, step: 0.1)
+#endif
                 }
                 .padding()
                 .background(.regularMaterial)

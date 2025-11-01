@@ -45,6 +45,7 @@ public struct ConfirmationBusyButton<Label: View>: View {
         }
         .disabled(isBusy)
         .animation(.easeInOut(duration: 0.3), value: isBusy)
+#if os(iOS)
         .CC_confirmationDialog(
             confirmationTitle,
             isPresented: $showConfirmation,
@@ -67,6 +68,31 @@ public struct ConfirmationBusyButton<Label: View>: View {
             ],
             message: confirmationMessage
         )
+#else
+        .confirmationDialog(
+            confirmationTitle,
+            isPresented: $showConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button(confirmButtonTitle, role: confirmButtonRole) {
+                withAnimation {
+                    isBusy = true
+                }
+                Task {
+                    defer {
+                        DispatchQueue.main.async {
+                            withAnimation {
+                                isBusy = false
+                            }
+                        }
+                    }
+                    try await action()
+                }
+            }
+        } message: {
+            Text(confirmationMessage)
+        }
+#endif
     }
 
     public init(

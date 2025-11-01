@@ -234,7 +234,7 @@ class TaskViewModel: ObservableObject {
             }
             .padding()
             .navigationTitle("Task Comparison")
-            #if !os(macOS)
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .CC_task {

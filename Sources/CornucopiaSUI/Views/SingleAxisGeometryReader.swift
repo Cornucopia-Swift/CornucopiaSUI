@@ -165,10 +165,12 @@ struct SingleAxisGeometryReader<Content: View>: View {
                             .background(Color.red.opacity(0.1))
                             .animation(.easeInOut, value: containerWidth)
                             
+#if !os(tvOS)
                             Slider(value: $containerWidth, in: 200...400) {
                                 Text("Width")
                             }
                             .padding(.horizontal)
+#endif
                         }
                         
                         VStack(spacing: 10) {
@@ -190,10 +192,12 @@ struct SingleAxisGeometryReader<Content: View>: View {
                             .background(Color.teal.opacity(0.1))
                             .animation(.easeInOut, value: containerHeight)
                             
+#if !os(tvOS)
                             Slider(value: $containerHeight, in: 100...300) {
                                 Text("Height")
                             }
                             .padding(.horizontal)
+#endif
                         }
                     }
                     

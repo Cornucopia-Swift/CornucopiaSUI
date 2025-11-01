@@ -79,6 +79,7 @@ public extension View {
     return SimpleTextDemo()
 }
 
+#if os(iOS) || os(macOS)
 #Preview("Variable Content") {
     struct VariableContentDemo: View {
         @State private var showSheet = true
@@ -114,6 +115,7 @@ public extension View {
     }
     return VariableContentDemo()
 }
+#endif
 
 #Preview("List Content") {
     struct ListContentDemo: View {
@@ -167,7 +169,7 @@ public extension View {
                         }
                     }
                     .navigationTitle("Sign Up")
-                    #if os(iOS) || os(tvOS)
+                    #if os(iOS)
                     .navigationBarTitleDisplayMode(.inline)
                     #endif
                 }

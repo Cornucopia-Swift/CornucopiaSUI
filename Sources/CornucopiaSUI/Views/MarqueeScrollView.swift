@@ -717,7 +717,9 @@ private extension CGSize {
                         .font(.headline)
                     
                     TextField("Enter custom text", text: $customText)
+#if os(iOS) || os(macOS)
                         .textFieldStyle(.roundedBorder)
+#endif
                     
                     MarqueeScrollView(startDelay: startDelay) {
                         Text(customText)
@@ -739,7 +741,9 @@ private extension CGSize {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Text("Start Delay: \(startDelay, specifier: "%.1f")s")
+#if !os(tvOS)
                             Slider(value: $startDelay, in: 0...5, step: 0.5)
+#endif
                         }
                         
                         // Demo with current settings

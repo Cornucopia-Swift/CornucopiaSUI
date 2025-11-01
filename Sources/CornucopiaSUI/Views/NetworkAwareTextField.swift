@@ -735,7 +735,9 @@ struct TextFieldReplacementDemo: View {
                 Text("Before: Regular TextField")
                     .font(.caption.weight(.medium))
                 TextField("Server address", text: $oldTextField)
+#if os(iOS) || os(macOS)
                     .textFieldStyle(.roundedBorder)
+#endif
             }
             
             VStack(alignment: .leading, spacing: 8) {
