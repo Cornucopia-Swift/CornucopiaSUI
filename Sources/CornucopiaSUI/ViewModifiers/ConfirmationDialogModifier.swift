@@ -30,17 +30,60 @@ struct ConfirmationDialogModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .sheet(isPresented: $isPresented) {
-                ConfirmationDialogView(
+            .fullScreenCover(isPresented: $isPresented) {
+                ConfirmationDialogContainer(
                     title: titleVisibility == .visible ? title : "",
                     message: message,
                     actions: actions,
                     actionsContent: actionsContent,
                     isPresented: $isPresented
                 )
-                .CC_presentationDetentAutoHeight()
-                .presentationDragIndicator(.hidden)
+                .presentationBackground(.clear)
             }
+            .transaction { $0.disablesAnimations = true }
+    }
+}
+
+private struct ConfirmationDialogContainer: View {
+    let title: String
+    let message: String?
+    let actions: [ConfirmationDialogAction]
+    let actionsContent: AnyView?
+    @Binding var isPresented: Bool
+
+    @State private var showContent = false
+
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            Color.black.opacity(showContent ? 0.4 : 0)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    dismissWithAnimation()
+                }
+
+            if showContent {
+                ConfirmationDialogView(
+                    title: title,
+                    message: message,
+                    actions: actions,
+                    actionsContent: actionsContent,
+                    isPresented: $isPresented,
+                    dismissAction: dismissWithAnimation
+                )
+                .transition(.move(edge: .bottom))
+            }
+        }
+        .animation(.easeInOut(duration: 0.3), value: showContent)
+        .onAppear {
+            showContent = true
+        }
+    }
+
+    private func dismissWithAnimation() {
+        showContent = false
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            isPresented = false
+        }
     }
 }
 

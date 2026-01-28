@@ -26,7 +26,7 @@ struct ConfirmationDialogView: View {
     // If provided and `actions` is empty, render raw content instead of synthesized buttons
     let actionsContent: AnyView?
     @Binding var isPresented: Bool
-    @Environment(\.dismiss) private var dismiss
+    var dismissAction: (() -> Void)?
     @Environment(\.colorScheme) private var colorScheme
     @FocusState private var isInputFocused: Bool
 
@@ -144,11 +144,19 @@ struct ConfirmationDialogView: View {
         .padding(.bottom, 0)
     }
 
+    private func dismiss() {
+        if let dismissAction {
+            dismissAction()
+        } else {
+            isPresented = false
+        }
+    }
+
     @ViewBuilder
     private func actionButton(for action: ConfirmationDialogAction) -> some View {
         Button {
             dismiss()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                 action.action()
             }
         } label: {
