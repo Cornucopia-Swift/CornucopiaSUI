@@ -7,7 +7,6 @@ import SwiftUI
 public enum ConfirmationDialogBackgroundStyle {
     case system
     case plain
-    case plainWithSeam
 }
 
 public struct ConfirmationDialogBackground {

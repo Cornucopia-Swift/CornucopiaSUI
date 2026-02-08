@@ -261,8 +261,6 @@ struct ConfirmationDialogView: View {
             return colorScheme != .dark
         case .plain:
             return false
-        case .plainWithSeam:
-            return true
         }
     }
 
@@ -598,7 +596,6 @@ struct ProfessionalButtonStyle: ButtonStyle {
     struct ConfirmationDialogBackgroundDemo: View {
         @State private var showDefaultBackground = false
         @State private var showNeutralBackground = false
-        @State private var showNeutralSeamBackground = false
         @State private var showTransparentBackground = false
 
         var body: some View {
@@ -621,11 +618,6 @@ struct ProfessionalButtonStyle: ButtonStyle {
 
                     Button("Neutral Background") {
                         showNeutralBackground = true
-                    }
-                    .buttonStyle(.bordered)
-
-                    Button("Neutral + Seam") {
-                        showNeutralSeamBackground = true
                     }
                     .buttonStyle(.bordered)
 
@@ -657,19 +649,6 @@ struct ProfessionalButtonStyle: ButtonStyle {
                     ConfirmationDialogAction("Proceed") {}
                 ],
                 message: "Uses a neutral card to avoid accent-tinted backgrounds."
-            )
-            .CC_confirmationDialog(
-                "Neutral Surface + Seam",
-                isPresented: $showNeutralSeamBackground,
-                background: .init(
-                    sheetBackgroundColor: .clear,
-                    cardBackgroundColor: Color(UIColor.systemBackground),
-                    style: .plainWithSeam
-                ),
-                actions: [
-                    ConfirmationDialogAction("Proceed") {}
-                ],
-                message: "Uses a neutral card and restores the seam above Cancel."
             )
             .CC_confirmationDialog(
                 "Transparent",
