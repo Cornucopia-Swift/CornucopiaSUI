@@ -22,6 +22,7 @@ public struct ConfirmationDialogAction {
 struct ConfirmationDialogView: View {
     let title: String
     let message: String?
+    let background: ConfirmationDialogBackground
     let actions: [ConfirmationDialogAction]
     // If provided and `actions` is empty, render raw content instead of synthesized buttons
     let actionsContent: AnyView?
@@ -174,26 +175,24 @@ struct ConfirmationDialogView: View {
 
     @ViewBuilder
     private var cancelSeparator: some View {
-        if colorScheme == .dark {
-            // Dark mode: simple divider like other buttons
-            Divider()
-                .background(separatorColor)
-        } else {
-            // Light mode: brand-style 8pt translucent band above Cancel
+        if shouldUseSeamBand {
             Rectangle()
                 .fill(separatorColor)
                 .frame(height: 8)
                 .overlay(
                     LinearGradient(
                         gradient: Gradient(colors: [
-                            Color.black.opacity(0.1),
+                            Color.black.opacity(colorScheme == .dark ? 0.3 : 0.1),
                             Color.clear,
-                            Color.black.opacity(0.05)
+                            Color.black.opacity(colorScheme == .dark ? 0.2 : 0.05)
                         ]),
                         startPoint: .top,
                         endPoint: .bottom
                     )
                 )
+        } else {
+            Divider()
+                .background(separatorColor)
         }
     }
 
@@ -202,7 +201,7 @@ struct ConfirmationDialogView: View {
         Button {
             dismiss()
         } label: {
-            Text("Cancel")
+            Text("CANCEL")
                 .font(.body)
                 .fontWeight(.medium)
                 .foregroundStyle(.primary)
@@ -256,46 +255,74 @@ struct ConfirmationDialogView: View {
         #endif
     }
 
+    private var shouldUseSeamBand: Bool {
+        switch background.style {
+        case .system:
+            return colorScheme != .dark
+        case .plain:
+            return false
+        case .plainWithSeam:
+            return true
+        }
+    }
+
+    private var sheetBaseColor: Color {
+        background.sheetBackgroundColor ?? backgroundColor
+    }
+
+    private var cardBaseColor: Color {
+        background.cardBackgroundColor ?? backgroundColor
+    }
+
+    @ViewBuilder
     private var sheetBackground: some View {
-        backgroundColor
-            .overlay(
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        Color.accentColor.opacity(colorScheme == .dark ? 0.32 : 0.14),
-                        Color.accentColor.opacity(colorScheme == .dark ? 0.12 : 0.05),
-                        Color.clear
-                    ]),
-                    startPoint: .top,
-                    endPoint: .bottom
+        if background.style == .system {
+            sheetBaseColor
+                .overlay(
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            Color.accentColor.opacity(colorScheme == .dark ? 0.32 : 0.14),
+                            Color.accentColor.opacity(colorScheme == .dark ? 0.12 : 0.05),
+                            Color.clear
+                        ]),
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
                 )
-            )
-            .overlay(
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        Color.black.opacity(colorScheme == .dark ? 0.45 : 0.06),
-                        Color.clear
-                    ]),
-                    startPoint: .bottom,
-                    endPoint: .top
+                .overlay(
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            Color.black.opacity(colorScheme == .dark ? 0.45 : 0.06),
+                            Color.clear
+                        ]),
+                        startPoint: .bottom,
+                        endPoint: .top
+                    )
                 )
-            )
+        } else {
+            sheetBaseColor
+        }
     }
 
     @ViewBuilder
     private var dialogBackground: some View {
-        ZStack {
-            backgroundColor
+        if background.style == .system {
+            ZStack {
+                cardBaseColor
 
-            // Subtle gradient overlay that respects accent color
-            LinearGradient(
-                gradient: Gradient(colors: [
-                    Color.accentColor.opacity(colorScheme == .dark ? 0.03 : 0.02),
-                    Color.clear,
-                    Color.accentColor.opacity(colorScheme == .dark ? 0.05 : 0.03)
-                ]),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
+                // Subtle gradient overlay that respects accent color
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        Color.accentColor.opacity(colorScheme == .dark ? 0.03 : 0.02),
+                        Color.clear,
+                        Color.accentColor.opacity(colorScheme == .dark ? 0.05 : 0.03)
+                    ]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            }
+        } else {
+            cardBaseColor
         }
     }
 
@@ -565,5 +592,97 @@ struct ProfessionalButtonStyle: ButtonStyle {
     }
 
     return ConfirmationDialogDemo()
+}
+
+#Preview("Confirmation Dialog Backgrounds") {
+    struct ConfirmationDialogBackgroundDemo: View {
+        @State private var showDefaultBackground = false
+        @State private var showNeutralBackground = false
+        @State private var showNeutralSeamBackground = false
+        @State private var showTransparentBackground = false
+
+        var body: some View {
+            ZStack {
+                LinearGradient(
+                    colors: [Color.orange.opacity(0.2), Color.teal.opacity(0.2), Color.indigo.opacity(0.2)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
+
+                VStack(spacing: 16) {
+                    Text("Background Variants")
+                        .font(.title3.weight(.semibold))
+
+                    Button("Default Background") {
+                        showDefaultBackground = true
+                    }
+                    .buttonStyle(.borderedProminent)
+
+                    Button("Neutral Background") {
+                        showNeutralBackground = true
+                    }
+                    .buttonStyle(.bordered)
+
+                    Button("Neutral + Seam") {
+                        showNeutralSeamBackground = true
+                    }
+                    .buttonStyle(.bordered)
+
+                    Button("Transparent / None") {
+                        showTransparentBackground = true
+                    }
+                    .buttonStyle(.bordered)
+                }
+                .padding(24)
+                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            }
+            .CC_confirmationDialog(
+                "Default",
+                isPresented: $showDefaultBackground,
+                actions: [
+                    ConfirmationDialogAction("Proceed") {}
+                ],
+                message: "Uses the default CornucopiaSUI dialog background."
+            )
+            .CC_confirmationDialog(
+                "Neutral Surface",
+                isPresented: $showNeutralBackground,
+                background: .init(
+                    sheetBackgroundColor: .clear,
+                    cardBackgroundColor: Color(UIColor.systemBackground),
+                    style: .plain
+                ),
+                actions: [
+                    ConfirmationDialogAction("Proceed") {}
+                ],
+                message: "Uses a neutral card to avoid accent-tinted backgrounds."
+            )
+            .CC_confirmationDialog(
+                "Neutral Surface + Seam",
+                isPresented: $showNeutralSeamBackground,
+                background: .init(
+                    sheetBackgroundColor: .clear,
+                    cardBackgroundColor: Color(UIColor.systemBackground),
+                    style: .plainWithSeam
+                ),
+                actions: [
+                    ConfirmationDialogAction("Proceed") {}
+                ],
+                message: "Uses a neutral card and restores the seam above Cancel."
+            )
+            .CC_confirmationDialog(
+                "Transparent",
+                isPresented: $showTransparentBackground,
+                background: .clear,
+                actions: [
+                    ConfirmationDialogAction("Proceed") {}
+                ],
+                message: "No backdrop and no dialog surface background."
+            )
+        }
+    }
+
+    return ConfirmationDialogBackgroundDemo()
 }
 #endif

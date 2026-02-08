@@ -4,6 +4,43 @@
 #if os(iOS)
 import SwiftUI
 
+public enum ConfirmationDialogBackgroundStyle {
+    case system
+    case plain
+    case plainWithSeam
+}
+
+public struct ConfirmationDialogBackground {
+    public let backdropColor: Color
+    public let sheetBackgroundColor: Color?
+    public let cardBackgroundColor: Color?
+    public let style: ConfirmationDialogBackgroundStyle
+
+    public init(
+        backdropColor: Color = Color.black.opacity(0.4),
+        sheetBackgroundColor: Color? = nil,
+        cardBackgroundColor: Color? = nil,
+        style: ConfirmationDialogBackgroundStyle = .system
+    ) {
+        self.backdropColor = backdropColor
+        self.sheetBackgroundColor = sheetBackgroundColor
+        self.cardBackgroundColor = cardBackgroundColor
+        self.style = style
+    }
+
+    public static let `default` = ConfirmationDialogBackground()
+
+    public static let clear = ConfirmationDialogBackground(
+        backdropColor: .clear,
+        sheetBackgroundColor: .clear,
+        cardBackgroundColor: .clear,
+        style: .plain
+    )
+}
+
+@available(*, deprecated, renamed: "ConfirmationDialogBackground")
+public typealias CCConfirmationDialogBackground = ConfirmationDialogBackground
+
 public struct CC_ConfirmationDialogButton: View {
     let title: String
     let role: ButtonRole?
@@ -25,6 +62,7 @@ struct ConfirmationDialogModifier: ViewModifier {
     let titleVisibility: Visibility
     @Binding var isPresented: Bool
     let message: String?
+    let background: ConfirmationDialogBackground
     let actions: [ConfirmationDialogAction]
     let actionsContent: AnyView?
 
@@ -34,6 +72,7 @@ struct ConfirmationDialogModifier: ViewModifier {
                 ConfirmationDialogContainer(
                     title: titleVisibility == .visible ? title : "",
                     message: message,
+                    background: background,
                     actions: actions,
                     actionsContent: actionsContent,
                     isPresented: $isPresented
@@ -47,6 +86,7 @@ struct ConfirmationDialogModifier: ViewModifier {
 private struct ConfirmationDialogContainer: View {
     let title: String
     let message: String?
+    let background: ConfirmationDialogBackground
     let actions: [ConfirmationDialogAction]
     let actionsContent: AnyView?
     @Binding var isPresented: Bool
@@ -55,7 +95,7 @@ private struct ConfirmationDialogContainer: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            Color.black.opacity(showContent ? 0.4 : 0)
+            background.backdropColor.opacity(showContent ? 1 : 0)
                 .ignoresSafeArea()
                 .onTapGesture {
                     dismissWithAnimation()
@@ -65,6 +105,7 @@ private struct ConfirmationDialogContainer: View {
                 ConfirmationDialogView(
                     title: title,
                     message: message,
+                    background: background,
                     actions: actions,
                     actionsContent: actionsContent,
                     isPresented: $isPresented,
@@ -92,6 +133,7 @@ public extension View {
         _ title: String,
         isPresented: Binding<Bool>,
         titleVisibility: Visibility = .automatic,
+        background: ConfirmationDialogBackground = .default,
         actions: [ConfirmationDialogAction],
         message: String? = nil
     ) -> some View {
@@ -101,6 +143,7 @@ public extension View {
                 titleVisibility: titleVisibility == .automatic ? .visible : titleVisibility,
                 isPresented: isPresented,
                 message: message,
+                background: background,
                 actions: actions,
                 actionsContent: nil
             )
@@ -111,6 +154,7 @@ public extension View {
         _ title: String,
         isPresented: Binding<Bool>,
         titleVisibility: Visibility = .automatic,
+        background: ConfirmationDialogBackground = .default,
         actions: [ConfirmationDialogAction],
         message: String? = nil,
         @ViewBuilder inputContent: () -> I
@@ -121,6 +165,7 @@ public extension View {
                 titleVisibility: titleVisibility == .automatic ? .visible : titleVisibility,
                 isPresented: isPresented,
                 message: message,
+                background: background,
                 actions: actions,
                 actionsContent: AnyView(inputContent())
             )
@@ -131,6 +176,7 @@ public extension View {
         _ title: String,
         isPresented: Binding<Bool>,
         titleVisibility: Visibility = .automatic,
+        background: ConfirmationDialogBackground = .default,
         @ViewBuilder actions: () -> A
     ) -> some View {
         let providedActionsView = actions()
@@ -141,6 +187,7 @@ public extension View {
                 titleVisibility: titleVisibility == .automatic ? .visible : titleVisibility,
                 isPresented: isPresented,
                 message: nil,
+                background: background,
                 actions: extractedActions,
                 actionsContent: extractedActions.isEmpty ? AnyView(providedActionsView) : nil
             )
@@ -151,6 +198,7 @@ public extension View {
         _ title: String,
         isPresented: Binding<Bool>,
         titleVisibility: Visibility = .automatic,
+        background: ConfirmationDialogBackground = .default,
         @ViewBuilder actions: () -> A,
         @ViewBuilder message: () -> M
     ) -> some View {
@@ -163,6 +211,7 @@ public extension View {
                 titleVisibility: titleVisibility == .automatic ? .visible : titleVisibility,
                 isPresented: isPresented,
                 message: messageText,
+                background: background,
                 actions: extractedActions,
                 actionsContent: extractedActions.isEmpty ? AnyView(providedActionsView) : nil
             )
