@@ -6,10 +6,10 @@ A SwiftUI utility library that extends the Cornucopia ecosystem with reusable co
 
 ## Platform Support
 
-- iOS 16+
+- iOS 17+
 - macOS 13+
-- tvOS 16+
-- watchOS 9+
+- tvOS 17+
+- watchOS 10+
 
 ## Installation
 
@@ -32,37 +32,47 @@ Or add it through Xcode:
 ## What's Included
 
 ### 🎛️ View Modifiers
+- **`CC_notificationCapsule`** - Notification capsule for transient messages and activity indicators
+- **`CC_confirmationDialog`** - Custom confirmation dialogs with rich styling (iOS)
+- **`CC_busyButton`** - Wrap any view as a busy-state button
 - **`CC_task`** - Persistent background tasks that survive view hierarchy changes
-- **`CC_onFirstAppear`** - Execute code only on first view appearance
-- **`CC_measureSize`** - Measure view dimensions
-- **`CC_blink`** - Blinking animation effects
-- **`CC_conditionalView`** - Conditional view rendering
 - **`CC_debouncedTask`** - Debounced task execution
-- **`CC_invisibleNavigation`** - Hide navigation elements
-- **`CC_debugPrint`** - Debug printing for development
+- **`CC_onFirstAppear`** - Execute code only on first view appearance
+- **`CC_blendingSyncGroup`** - Synchronize blending animations across a view subtree
+- **`CC_blinking`** - Blinking animation effects (hard or soft style)
+- **`CC_onCondition`** - Conditional view modification
+- **`CC_measureSize`** - Measure view dimensions
+- **`CC_withInvisibleNavigation`** - Programmatic navigation without visible links
 - **`CC_presentationDetentAutoHeight`** - Auto-sizing sheet presentation
+- **`CC_debugPrinting`** - Debug printing for development
 
 ### 📱 Views & Components
-- **`BusyButton`** - Buttons with built-in loading states
-- **`MarqueeScrollView`** - Generic auto-scrolling container for any SwiftUI content (iOS 17+)
+- **`BusyButton`** / **`GenericBusyButton`** - Buttons with built-in loading states and multiple indicator styles
+- **`ConfirmationBusyButton`** - Busy button with built-in confirmation dialog
+- **`StyledTextField`** - Pre-styled text fields for common input types (username, password, email, etc.) (iOS)
+- **`MarqueeScrollView`** - Generic auto-scrolling container for any SwiftUI content
 - **`MarqueeText`** - Smoothly scrolling text for long content
 - **`BlendingTextLabel`** - Text with blending animations
 - **`SynchronizedBlendingTextLabel`** - Blended text synchronized across a group
-- **`NetworkAwareTextField`** - Text fields that adapt to network state
+- **`SynchronizedBlendingContainer`** - Generic container with synchronized blending
+- **`NetworkAwareTextField`** - Text fields with network input validation (hostname, IPv4, IPv6, MAC)
 - **`VINTextField`** - Vehicle Identification Number input with validation and formatting
 - **`SingleAxisGeometryReader`** - Geometry reading for single axis
-- **`ImagePickerView`** - UIKit image picker integration
+- **`ImagePickerView`** - UIKit image picker integration (iOS)
 
 ### 🧭 Navigation
 - **`NavigationController`** - Type-safe navigation stack management with programmatic control
 
 ### 🔧 Observable Tools
+- **`NotificationCapsuleController`** - Programmatic control for notification capsule messages
 - **`ObservableBusyness`** - Debounced busy state management
 - **`ObservableReachability`** - Network connectivity monitoring
 - **`ObservableLocalNetworkAuthorization`** - Local network permission state
+- **`BlendingSyncManager`** / **`BlendingSyncGroup`** - Centralized synchronization for blending animations
 
 ### 🎵 Audio & Media
 - **`AudioPlayer`** - Simple audio playback utilities
+- **`DevicePickerView`** - Audio route picker (iOS)
 
 ### 📱 UIKit Integrations
 - **`KeyboardAwareness`** - Keyboard state monitoring
@@ -75,6 +85,67 @@ Or add it through Xcode:
 - **ProcessInfo+Previews** - Preview environment helpers
 
 ## Usage Examples
+
+### NotificationCapsule - Transient Messages & Activity Indicators
+
+A capsule-shaped notification overlay anchored at the top of your view. Supports transient notifications (auto-dismiss) and persistent activity indicators (manual dismiss). Each style has a distinct tint color and icon.
+
+```swift
+import SwiftUI
+import CornucopiaSUI
+
+struct ContentView: View {
+    @StateObject private var notifications = NotificationCapsuleController()
+
+    var body: some View {
+        NavigationStack {
+            MyView()
+        }
+        .CC_notificationCapsule(notifications)
+        .task {
+            // Transient messages auto-dismiss after 3 seconds (default)
+            notifications.show("Settings saved!", style: .success)
+
+            // Custom duration
+            notifications.show("Check your connection", style: .warning, duration: 5.0)
+
+            // Activity indicator stays until explicitly dismissed
+            notifications.show("Syncing data\u{2026}", style: .activity)
+            await performSync()
+            notifications.show("Sync complete!", style: .success)
+        }
+    }
+}
+```
+
+Available styles: `.info` (accent), `.success` (green), `.warning` (orange), `.error` (red), `.activity` (spinner).
+
+Successive calls to `show()` replace the current message with a smooth animation. The `.activity` style defaults to persistent display (no auto-dismiss) unless an explicit `duration` is passed.
+
+### ConfirmationDialog - Custom Styled Dialogs (iOS)
+
+```swift
+import SwiftUI
+import CornucopiaSUI
+
+struct SettingsView: View {
+    @State private var showDeleteDialog = false
+
+    var body: some View {
+        Button("Delete All Data") { showDeleteDialog = true }
+            .CC_confirmationDialog(
+                "Clear Data",
+                isPresented: $showDeleteDialog,
+                actions: [
+                    ConfirmationDialogAction("Yes, Delete Everything", role: .destructive) {
+                        DataStore.shared.deleteAll()
+                    }
+                ],
+                message: "This will permanently delete all data. This action cannot be undone."
+            )
+    }
+}
+```
 
 ### BusyButton - Loading States Made Easy
 

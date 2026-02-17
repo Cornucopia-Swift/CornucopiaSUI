@@ -39,10 +39,12 @@ The library uses `ObservableObject` pattern for state management:
 - `ObservableBusyness`: Debounced busy state provider implementing `BusynessObserver`
 - `ObservableLocalNetworkAuthorization`: Singleton for network authorization state
 - `ObservableReachability`: Network reachability monitoring
+- `NotificationCapsuleController`: Transient notification capsule with styles (info/success/warning/error/activity)
 
 #### View Modifier Pattern
 Custom view modifiers follow the pattern of creating a struct conforming to `ViewModifier` with a corresponding extension method prefixed with `CC_`:
 - Example: `PersistentTaskModifier` with `.CC_task()` extension method
+- Example: `NotificationCapsuleModifier` with `.CC_notificationCapsule()` extension method
 
 #### Navigation System
 `NavigationController` provides centralized navigation management:
@@ -56,5 +58,5 @@ Custom view modifiers follow the pattern of creating a struct conforming to `Vie
 - View modifiers are suffixed with `Modifier` in the struct name
 
 ### Platform Support
-- iOS 16+, macOS 13+, tvOS 16+, watchOS 9+
+- iOS 17+, macOS 13+, tvOS 17+, watchOS 10+
 - Platform-specific code uses availability checks (e.g., `#available(iOS 16.0, *)`)
