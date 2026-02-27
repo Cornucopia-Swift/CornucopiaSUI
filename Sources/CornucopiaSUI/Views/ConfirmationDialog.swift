@@ -22,6 +22,7 @@ public struct ConfirmationDialogAction {
 struct ConfirmationDialogView: View {
     let title: String
     let message: String?
+    let messageContent: AnyView?
     let background: ConfirmationDialogBackground
     let actions: [ConfirmationDialogAction]
     // If provided and `actions` is empty, render raw content instead of synthesized buttons
@@ -99,7 +100,12 @@ struct ConfirmationDialogView: View {
                     .lineLimit(3)
             }
 
-            if let message = message {
+            if let messageContent {
+                messageContent
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            } else if let message = message {
                 Text(message)
                     .font(.callout)
                     .foregroundStyle(.secondary)

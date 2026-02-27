@@ -61,6 +61,7 @@ struct ConfirmationDialogModifier: ViewModifier {
     let titleVisibility: Visibility
     @Binding var isPresented: Bool
     let message: String?
+    let messageContent: AnyView?
     let background: ConfirmationDialogBackground
     let actions: [ConfirmationDialogAction]
     let actionsContent: AnyView?
@@ -71,6 +72,7 @@ struct ConfirmationDialogModifier: ViewModifier {
                 ConfirmationDialogContainer(
                     title: titleVisibility == .visible ? title : "",
                     message: message,
+                    messageContent: messageContent,
                     background: background,
                     actions: actions,
                     actionsContent: actionsContent,
@@ -85,6 +87,7 @@ struct ConfirmationDialogModifier: ViewModifier {
 private struct ConfirmationDialogContainer: View {
     let title: String
     let message: String?
+    let messageContent: AnyView?
     let background: ConfirmationDialogBackground
     let actions: [ConfirmationDialogAction]
     let actionsContent: AnyView?
@@ -104,6 +107,7 @@ private struct ConfirmationDialogContainer: View {
                 ConfirmationDialogView(
                     title: title,
                     message: message,
+                    messageContent: messageContent,
                     background: background,
                     actions: actions,
                     actionsContent: actionsContent,
@@ -142,6 +146,7 @@ public extension View {
                 titleVisibility: titleVisibility == .automatic ? .visible : titleVisibility,
                 isPresented: isPresented,
                 message: message,
+                messageContent: nil,
                 background: background,
                 actions: actions,
                 actionsContent: nil
@@ -164,6 +169,7 @@ public extension View {
                 titleVisibility: titleVisibility == .automatic ? .visible : titleVisibility,
                 isPresented: isPresented,
                 message: message,
+                messageContent: nil,
                 background: background,
                 actions: actions,
                 actionsContent: AnyView(inputContent())
@@ -186,6 +192,7 @@ public extension View {
                 titleVisibility: titleVisibility == .automatic ? .visible : titleVisibility,
                 isPresented: isPresented,
                 message: nil,
+                messageContent: nil,
                 background: background,
                 actions: extractedActions,
                 actionsContent: extractedActions.isEmpty ? AnyView(providedActionsView) : nil
@@ -203,13 +210,13 @@ public extension View {
     ) -> some View {
         let providedActionsView = actions()
         let extractedActions = Self.extractActions(from: providedActionsView)
-        let messageText = Self.extractText(from: message())
         return modifier(
             ConfirmationDialogModifier(
                 title: title,
                 titleVisibility: titleVisibility == .automatic ? .visible : titleVisibility,
                 isPresented: isPresented,
-                message: messageText,
+                message: nil,
+                messageContent: AnyView(message()),
                 background: background,
                 actions: extractedActions,
                 actionsContent: extractedActions.isEmpty ? AnyView(providedActionsView) : nil
@@ -241,23 +248,5 @@ public extension View {
         return actions
     }
 
-    private static func extractText<V: View>(from view: V) -> String? {
-        let mirror = Mirror(reflecting: view)
-
-        for child in mirror.children {
-            if let text = child.value as? Text {
-                let textMirror = Mirror(reflecting: text)
-                for textChild in textMirror.children where textChild.label == "storage" {
-                    let storageMirror = Mirror(reflecting: textChild.value)
-                    if let firstChild = storageMirror.children.first,
-                       let verbatimText = firstChild.value as? String {
-                        return verbatimText
-                    }
-                }
-            }
-        }
-
-        return nil
-    }
 }
 #endif
