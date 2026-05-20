@@ -38,7 +38,6 @@ public struct MarqueeScrollView<Content: View>: View {
 
     @State private var containerSize: CGSize = .zero
     @State private var contentSize: CGSize = .zero
-    @State private var measurementVersion: Int = 0
 
     /// Creates a marquee scroll view with the given content.
     public init(
@@ -110,8 +109,6 @@ public struct MarqueeScrollView<Content: View>: View {
         guard sanitizedSize.isFinite else { return }
         guard !containerSize.isApproximatelyEqual(to: sanitizedSize, tolerance: measurementTolerance) else { return }
         containerSize = sanitizedSize
-        measurementVersion += 1
-        scheduleDebouncedDebugPrint()
     }
 
     private func updateContentSize(_ size: CGSize) {
@@ -119,23 +116,6 @@ public struct MarqueeScrollView<Content: View>: View {
         guard sanitizedSize.isFinite else { return }
         guard !contentSize.isApproximatelyEqual(to: sanitizedSize, tolerance: measurementTolerance) else { return }
         contentSize = sanitizedSize
-        measurementVersion += 1
-        scheduleDebouncedDebugPrint()
-    }
-
-    private func scheduleDebouncedDebugPrint() {
-#if DEBUG
-        Task { @MainActor in
-            let version = measurementVersion
-            try? await Task.sleep(for: .milliseconds(5))
-
-            guard version == measurementVersion else { return }
-            guard containerSize.width > 0, contentSize.width > 0 else { return }
-
-            let willScroll = shouldAnimate
-            print("DEBUG: MarqueeScrollView content: \(String(format: "%.0f", contentSize.width))w, container: \(String(format: "%.0f", containerSize.width))w → \(willScroll ? "SCROLLS" : "static")")
-        }
-#endif
     }
 }
 
