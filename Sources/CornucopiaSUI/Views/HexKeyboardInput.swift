@@ -140,7 +140,7 @@ public struct HexKeyboardInput: View {
                 .padding(.vertical, 10)
             }
 
-            Button {
+            HexKeyboardInlineKey(isEnabled: !text.isEmpty) {
                 clear()
             } label: {
                 Image(systemName: "xmark")
@@ -148,8 +148,6 @@ public struct HexKeyboardInput: View {
                     .frame(width: 44, height: 40)
                     .contentShape(Rectangle())
             }
-            .buttonStyle(HexKeyboardInlineButtonStyle(isEnabled: !text.isEmpty))
-            .disabled(text.isEmpty)
             .accessibilityLabel("Clear hex payload")
         }
         .background(displayBackground)
@@ -240,40 +238,35 @@ public struct HexKeyboardInput: View {
     }
 
     private func hexKey(_ key: String, role: HexKeyboardKeyRole = .digit) -> some View {
-        Button {
+        HexKeyboardKey(role: role) {
             append(key)
         } label: {
             Text(key)
                 .font(.title3.monospaced().weight(.semibold))
                 .frame(maxWidth: .infinity, minHeight: 42)
         }
-        .buttonStyle(HexKeyboardKeyStyle(role: role))
         .accessibilityLabel("Hex \(key)")
     }
 
     private var deleteKey: some View {
-        Button {
+        HexKeyboardKey(role: .action, isEnabled: !text.isEmpty) {
             deleteLastNibble()
         } label: {
             Image(systemName: "delete.left")
                 .font(.title3.weight(.semibold))
                 .frame(maxWidth: .infinity, minHeight: 42)
         }
-        .buttonStyle(HexKeyboardKeyStyle(role: .action))
-        .disabled(text.isEmpty)
         .accessibilityLabel("Delete")
     }
 
     private var returnKeyButton: some View {
-        Button {
+        HexKeyboardKey(role: canSubmit ? .submit : .action, isEnabled: canSubmit) {
             submit()
         } label: {
             Image(systemName: returnKeySystemImage)
                 .font(.title3.weight(.semibold))
                 .frame(maxWidth: .infinity, minHeight: 42)
         }
-        .buttonStyle(HexKeyboardKeyStyle(role: canSubmit ? .submit : .action))
-        .disabled(!canSubmit)
         .accessibilityLabel(returnKeyAccessibilityLabel)
     }
 
@@ -530,50 +523,92 @@ private enum HexKeyboardKeyRole {
     }
 }
 
-private struct HexKeyboardKeyStyle: ButtonStyle {
+private struct HexKeyboardKey<Label: View>: View {
 
     @Environment(\.colorScheme) private var colorScheme
+    @State private var isPressed = false
 
     var role: HexKeyboardKeyRole = .digit
+    var isEnabled = true
+    let action: () -> Void
+    @ViewBuilder let label: () -> Label
 
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
+    var body: some View {
+        label()
             .foregroundStyle(role.tint(for: colorScheme))
+            .opacity(isEnabled ? 1 : 0.45)
             .background {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(keyBackground(isPressed: configuration.isPressed))
+                    .fill(keyBackground)
             }
             .overlay {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .strokeBorder(keyBorder(isPressed: configuration.isPressed), lineWidth: 1)
+                    .strokeBorder(keyBorder, lineWidth: 1)
             }
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .scaleEffect(configuration.isPressed ? 0.98 : 1)
-            .animation(.easeOut(duration: 0.06), value: configuration.isPressed)
+            .scaleEffect(isPressed ? 0.98 : 1)
+            .animation(.easeOut(duration: 0.06), value: isPressed)
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in
+                        guard isEnabled else { return }
+                        isPressed = true
+                    }
+                    .onEnded { _ in
+                        guard isEnabled else { return }
+                        isPressed = false
+                        action()
+                    }
+            )
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction {
+                guard isEnabled else { return }
+                action()
+            }
     }
 
-    private func keyBackground(isPressed: Bool) -> Color {
+    private var keyBackground: Color {
         isPressed ? role.pressedBackground(for: colorScheme) : role.background(for: colorScheme)
     }
 
-    private func keyBorder(isPressed: Bool) -> Color {
+    private var keyBorder: Color {
         isPressed ? Color.accentColor.opacity(0.65) : role.border(for: colorScheme)
     }
 }
 
-private struct HexKeyboardInlineButtonStyle: ButtonStyle {
+private struct HexKeyboardInlineKey<Label: View>: View {
 
     @Environment(\.colorScheme) private var colorScheme
+    @State private var isPressed = false
 
     let isEnabled: Bool
+    let action: () -> Void
+    @ViewBuilder let label: () -> Label
 
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
+    var body: some View {
+        label()
             .foregroundStyle(foreground)
-            .opacity(configuration.isPressed ? 0.68 : 1)
-            .scaleEffect(configuration.isPressed ? 0.94 : 1)
-            .animation(.easeOut(duration: 0.06), value: configuration.isPressed)
+            .opacity(isPressed ? 0.68 : 1)
+            .scaleEffect(isPressed ? 0.94 : 1)
+            .animation(.easeOut(duration: 0.06), value: isPressed)
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in
+                        guard isEnabled else { return }
+                        isPressed = true
+                    }
+                    .onEnded { _ in
+                        guard isEnabled else { return }
+                        isPressed = false
+                        action()
+                    }
+            )
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction {
+                guard isEnabled else { return }
+                action()
+            }
     }
 
     private var foreground: Color {
