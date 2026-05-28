@@ -54,6 +54,10 @@ public struct HexKeyboardInput: View {
         }
         .task {
             isInputFocused = true
+            normalizeBoundText()
+        }
+        .onChange(of: text) { _ in
+            normalizeBoundText()
         }
         .hardwareKeyboardInput(
             isFocused: $isInputFocused,
@@ -208,7 +212,7 @@ public struct HexKeyboardInput: View {
     private func append(_ nibble: String) {
         var hex = Self.normalizedHex(text)
         hex.append(nibble)
-        text = Self.groupedHex(hex)
+        text = hex
         isInputFocused = true
         feedback()
     }
@@ -217,7 +221,7 @@ public struct HexKeyboardInput: View {
         var hex = Self.normalizedHex(text)
         guard !hex.isEmpty else { return }
         hex.removeLast()
-        text = Self.groupedHex(hex)
+        text = hex
         isInputFocused = true
         feedback()
     }
@@ -245,6 +249,12 @@ public struct HexKeyboardInput: View {
         return characters.contains(where: \.isHexDigit)
     }
 
+    private func normalizeBoundText() {
+        let normalized = Self.normalizedHex(text)
+        guard text != normalized else { return }
+        text = normalized
+    }
+
     private func feedback() {
 #if canImport(UIKit)
         UIDevice.current.playInputClick()
@@ -257,6 +267,37 @@ public struct HexKeyboardInput: View {
             .replacingOccurrences(of: "0x", with: "", options: .caseInsensitive)
             .filter(\.isHexDigit)
             .uppercased()
+    }
+
+    public static func byteArray(from input: String, requiresEvenNibbleCount: Bool = true) -> [UInt8]? {
+        var hex = ""
+        let payload = input.replacingOccurrences(of: "0x", with: "", options: .caseInsensitive)
+
+        for character in payload {
+            if character.isHexDigit {
+                hex.append(character)
+            } else if character.isWhitespace || character == "," {
+                continue
+            } else {
+                return nil
+            }
+        }
+
+        guard !hex.isEmpty else { return nil }
+        if hex.count % 2 == 1 {
+            guard !requiresEvenNibbleCount else { return nil }
+            hex = "0" + hex
+        }
+
+        var bytes: [UInt8] = []
+        var index = hex.startIndex
+        while index < hex.endIndex {
+            let next = hex.index(index, offsetBy: 2)
+            guard let byte = UInt8(hex[index..<next], radix: 16) else { return nil }
+            bytes.append(byte)
+            index = next
+        }
+        return bytes
     }
 
     public static func groupedHex(_ input: String) -> String {
@@ -468,7 +509,8 @@ private struct HexKeyboardInputPreview: View {
     }
 
     var body: some View {
-        VStack {
+        VStack(spacing: 14) {
+            previewState
             Spacer()
             HexKeyboardInput(
                 $text,
@@ -478,7 +520,47 @@ private struct HexKeyboardInputPreview: View {
                 requiresEvenNibbleCount: requiresEvenNibbleCount
             ) {}
         }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 18)
         .background(Color.gray.opacity(0.12))
+    }
+
+    private var previewState: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            previewRow("Raw Binding", text.isEmpty ? "empty" : text)
+            previewRow("Grouped UI", HexKeyboardInput.groupedHex(text).isEmpty ? "empty" : HexKeyboardInput.groupedHex(text))
+            previewRow("Bytes", byteSummary)
+            previewRow("Can Submit", canSubmit ? "yes" : "no")
+        }
+        .font(.system(.caption, design: .monospaced))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(10)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+
+    private func previewRow(_ title: String, _ value: String) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title)
+                .foregroundStyle(.secondary)
+                .frame(width: 92, alignment: .leading)
+            Text(value)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var canSubmit: Bool {
+        let nibbleCount = HexKeyboardInput.normalizedHex(text).count
+        return scenario != .sendingDisabled
+            && nibbleCount >= minimumNibbleCount
+            && (!requiresEvenNibbleCount || nibbleCount.isMultiple(of: 2))
+    }
+
+    private var byteSummary: String {
+        guard let bytes = HexKeyboardInput.byteArray(from: text, requiresEvenNibbleCount: requiresEvenNibbleCount) else {
+            return "invalid"
+        }
+        return "[" + bytes.map { String(format: "0x%02X", $0) }.joined(separator: ", ") + "]"
     }
 
     private var minimumNibbleCount: Int {
@@ -514,7 +596,7 @@ private struct HexKeyboardInputPreview: View {
             case .minimumLengthBlocked:
                 "22 F1"
         }
-        return HexKeyboardInput.groupedHex(text)
+        return text
     }
 }
 
