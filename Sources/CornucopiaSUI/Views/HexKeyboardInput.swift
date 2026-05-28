@@ -94,7 +94,7 @@ public struct HexKeyboardInput: View {
                     .frame(width: 44, height: 40)
                     .contentShape(Rectangle())
             }
-            .buttonStyle(HexKeyboardSubmitButtonStyle())
+            .buttonStyle(HexKeyboardSubmitButtonStyle(isSubmitEnabled: canSubmit))
             .disabled(!canSubmit)
             .accessibilityLabel("Send hex payload")
         }
@@ -385,7 +385,9 @@ private struct HexKeyboardKeyStyle: ButtonStyle {
 
 private struct HexKeyboardSubmitButtonStyle: ButtonStyle {
 
-    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.colorScheme) private var colorScheme
+
+    let isSubmitEnabled: Bool
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -396,7 +398,11 @@ private struct HexKeyboardSubmitButtonStyle: ButtonStyle {
     }
 
     private var foreground: Color {
-        isEnabled ? .accentColor : .secondary.opacity(0.55)
+        if colorScheme == .dark {
+            return isSubmitEnabled ? .primary : .secondary.opacity(0.38)
+        }
+
+        return isSubmitEnabled ? .accentColor : .secondary.opacity(0.55)
     }
 }
 
