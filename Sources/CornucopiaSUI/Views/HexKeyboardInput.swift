@@ -23,6 +23,7 @@ public struct HexKeyboardInput: View {
 
     private let placeholder: String
     private let submitSystemImage: String
+    private let showsSubmitKey: Bool
     private let isSubmitEnabled: Bool
     private let minimumNibbleCount: Int
     private let requiresEvenNibbleCount: Bool
@@ -35,6 +36,7 @@ public struct HexKeyboardInput: View {
     ///     hexadecimal digits and removes separators such as spaces or `0x` prefixes.
     ///   - placeholder: Placeholder text shown while the payload is empty.
     ///   - submitSystemImage: SF Symbol used for the submit key.
+    ///   - showsSubmitKey: When `false`, hides the submit key for inline editing contexts.
     ///   - isSubmitEnabled: External enablement flag for submit, useful while a parent
     ///     operation is busy or unavailable.
     ///   - minimumNibbleCount: Minimum number of hex nibbles required before submit is enabled.
@@ -44,6 +46,7 @@ public struct HexKeyboardInput: View {
         _ text: Binding<String>,
         placeholder: String = "Hex payload",
         submitSystemImage: String = "paperplane.fill",
+        showsSubmitKey: Bool = true,
         isSubmitEnabled: Bool = true,
         minimumNibbleCount: Int = 1,
         requiresEvenNibbleCount: Bool = true,
@@ -52,6 +55,7 @@ public struct HexKeyboardInput: View {
         self._text = text
         self.placeholder = placeholder
         self.submitSystemImage = submitSystemImage
+        self.showsSubmitKey = showsSubmitKey
         self.isSubmitEnabled = isSubmitEnabled
         self.minimumNibbleCount = max(0, minimumNibbleCount)
         self.requiresEvenNibbleCount = requiresEvenNibbleCount
@@ -177,7 +181,9 @@ public struct HexKeyboardInput: View {
                 hexKey("9")
                 hexKey("0", role: .zero)
                 deleteKey
-                submitKey
+                if showsSubmitKey {
+                    submitKey
+                }
             }
         }
     }
@@ -230,6 +236,7 @@ public struct HexKeyboardInput: View {
 
     private var canSubmit: Bool {
         isSubmitEnabled
+            && showsSubmitKey
             && normalizedNibbleCount >= minimumNibbleCount
             && (!requiresEvenNibbleCount || normalizedNibbleCount.isMultiple(of: 2))
             && onSubmit != nil
@@ -548,6 +555,7 @@ private struct HexKeyboardInputPreview: View {
         case sendingDisabled
         case oddNibbleBlocked
         case minimumLengthBlocked
+        case inlineEditing
     }
 
     @State private var text: String
@@ -566,6 +574,8 @@ private struct HexKeyboardInputPreview: View {
             HexKeyboardInput(
                 $text,
                 placeholder: "Hex message",
+                submitSystemImage: submitSystemImage,
+                showsSubmitKey: scenario != .inlineEditing,
                 isSubmitEnabled: scenario != .sendingDisabled,
                 minimumNibbleCount: minimumNibbleCount,
                 requiresEvenNibbleCount: requiresEvenNibbleCount
@@ -618,6 +628,8 @@ private struct HexKeyboardInputPreview: View {
         switch scenario {
             case .minimumLengthBlocked:
                 8
+            case .inlineEditing:
+                2
             default:
                 1
         }
@@ -646,8 +658,19 @@ private struct HexKeyboardInputPreview: View {
                 "22 F"
             case .minimumLengthBlocked:
                 "22 F1"
+            case .inlineEditing:
+                "7E8"
         }
         return text
+    }
+
+    private var submitSystemImage: String {
+        switch scenario {
+            case .inlineEditing:
+                "checkmark"
+            default:
+                "paperplane.fill"
+        }
     }
 }
 
@@ -673,4 +696,8 @@ private struct HexKeyboardInputPreview: View {
 
 #Preview("Hex Keyboard Minimum Length Blocked") {
     HexKeyboardInputPreview(.minimumLengthBlocked)
+}
+
+#Preview("Hex Keyboard Inline Editing") {
+    HexKeyboardInputPreview(.inlineEditing)
 }
