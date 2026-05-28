@@ -24,6 +24,7 @@ public struct HexKeyboardInput: View {
     private let placeholder: String
     private let submitSystemImage: String
     private let showsSubmitKey: Bool
+    private let autoFocus: Bool
     private let isSubmitEnabled: Bool
     private let minimumNibbleCount: Int
     private let requiresEvenNibbleCount: Bool
@@ -37,6 +38,7 @@ public struct HexKeyboardInput: View {
     ///   - placeholder: Placeholder text shown while the payload is empty.
     ///   - submitSystemImage: SF Symbol used for the submit key.
     ///   - showsSubmitKey: When `false`, hides the submit key for inline editing contexts.
+    ///   - autoFocus: When `true`, the control claims keyboard focus when it appears.
     ///   - isSubmitEnabled: External enablement flag for submit, useful while a parent
     ///     operation is busy or unavailable.
     ///   - minimumNibbleCount: Minimum number of hex nibbles required before submit is enabled.
@@ -47,6 +49,7 @@ public struct HexKeyboardInput: View {
         placeholder: String = "Hex payload",
         submitSystemImage: String = "paperplane.fill",
         showsSubmitKey: Bool = true,
+        autoFocus: Bool = true,
         isSubmitEnabled: Bool = true,
         minimumNibbleCount: Int = 1,
         requiresEvenNibbleCount: Bool = true,
@@ -56,6 +59,7 @@ public struct HexKeyboardInput: View {
         self.placeholder = placeholder
         self.submitSystemImage = submitSystemImage
         self.showsSubmitKey = showsSubmitKey
+        self.autoFocus = autoFocus
         self.isSubmitEnabled = isSubmitEnabled
         self.minimumNibbleCount = max(0, minimumNibbleCount)
         self.requiresEvenNibbleCount = requiresEvenNibbleCount
@@ -75,7 +79,9 @@ public struct HexKeyboardInput: View {
             isInputFocused = true
         }
         .task {
-            isInputFocused = true
+            if autoFocus {
+                isInputFocused = true
+            }
             normalizeBoundText()
         }
         .onChange(of: text) { _ in
@@ -576,6 +582,7 @@ private struct HexKeyboardInputPreview: View {
                 placeholder: "Hex message",
                 submitSystemImage: submitSystemImage,
                 showsSubmitKey: scenario != .inlineEditing,
+                autoFocus: scenario != .inlineEditing,
                 isSubmitEnabled: scenario != .sendingDisabled,
                 minimumNibbleCount: minimumNibbleCount,
                 requiresEvenNibbleCount: requiresEvenNibbleCount
