@@ -181,17 +181,32 @@ public struct HexKeyboardInput: View {
         VStack(spacing: 6) {
             keypadRow(["1", "2", "3", "A", "B", "C"])
             keypadRow(["4", "5", "6", "D", "E", "F"])
-            HStack(spacing: 6) {
+            keypadBottomRow
+        }
+    }
+
+    private var keypadBottomRow: some View {
+        GeometryReader { geometry in
+            let spacing: CGFloat = 6
+            let keyWidth = (geometry.size.width - (spacing * 5)) / 6
+            HStack(spacing: spacing) {
                 hexKey("7")
+                    .frame(width: keyWidth)
                 hexKey("8")
+                    .frame(width: keyWidth)
                 hexKey("9")
+                    .frame(width: keyWidth)
                 hexKey("0", role: .zero)
+                    .frame(width: keyWidth)
                 deleteKey
+                    .frame(width: showsSubmitKey ? keyWidth : (keyWidth * 2) + spacing)
                 if showsSubmitKey {
                     submitKey
+                        .frame(width: keyWidth)
                 }
             }
         }
+        .frame(height: 42)
     }
 
     private func keypadRow(_ keys: [String]) -> some View {
