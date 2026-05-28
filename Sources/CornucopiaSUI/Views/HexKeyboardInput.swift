@@ -5,6 +5,7 @@
 
 import SwiftUI
 #if canImport(UIKit)
+import AudioToolbox
 import UIKit
 #endif
 
@@ -20,6 +21,9 @@ public struct HexKeyboardInput: View {
     @Environment(\.colorScheme) private var colorScheme
     @FocusState private var isInputFocused: Bool
     @State private var isCaretVisible = true
+#if canImport(UIKit)
+    @State private var feedbackPerformer = HexKeyboardFeedbackPerformer()
+#endif
 
     private let placeholder: String
     private let submitSystemImage: String
@@ -272,7 +276,7 @@ public struct HexKeyboardInput: View {
         hex.append(nibble)
         text = hex
         isInputFocused = true
-        feedback()
+        performFeedback()
     }
 
     private func deleteLastNibble() {
@@ -281,21 +285,21 @@ public struct HexKeyboardInput: View {
         hex.removeLast()
         text = hex
         isInputFocused = true
-        feedback()
+        performFeedback()
     }
 
     private func clear() {
         guard !text.isEmpty else { return }
         text = ""
         isInputFocused = true
-        feedback()
+        performFeedback()
     }
 
     private func submit() {
         guard canSubmit else { return }
         onSubmit?()
         isInputFocused = true
-        feedback()
+        performFeedback()
     }
 
     private func handleKeyPress(_ characters: String) -> Bool {
@@ -313,10 +317,9 @@ public struct HexKeyboardInput: View {
         text = normalized
     }
 
-    private func feedback() {
+    private func performFeedback() {
 #if canImport(UIKit)
-        UIDevice.current.playInputClick()
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        feedbackPerformer.perform()
 #endif
     }
 
@@ -525,6 +528,24 @@ private struct HexKeyboardInlineButtonStyle: ButtonStyle {
         return isEnabled ? .accentColor : .secondary.opacity(0.55)
     }
 }
+
+#if canImport(UIKit)
+@MainActor
+private final class HexKeyboardFeedbackPerformer {
+
+    private let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+
+    init() {
+        impactFeedback.prepare()
+    }
+
+    func perform() {
+        AudioServicesPlaySystemSound(1104)
+        impactFeedback.impactOccurred(intensity: 0.75)
+        impactFeedback.prepare()
+    }
+}
+#endif
 
 private extension String {
 
