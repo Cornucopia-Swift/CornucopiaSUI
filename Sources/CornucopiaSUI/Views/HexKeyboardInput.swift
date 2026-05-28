@@ -37,7 +37,6 @@ public struct HexKeyboardInput: View {
     private let submitSystemImage: String
     private let returnKey: ReturnKey
     private let autoFocus: Bool
-    private let usesInternalFocus: Bool
     private let isSubmitEnabled: Bool
     private let minimumNibbleCount: Int
     private let requiresEvenNibbleCount: Bool
@@ -54,9 +53,6 @@ public struct HexKeyboardInput: View {
     ///   - returnKey: Semantic action shown in the return-key position. When omitted,
     ///     `showsSubmitKey` controls whether a send key or no return key is shown.
     ///   - autoFocus: When `true`, the control claims keyboard focus when it appears.
-    ///   - usesInternalFocus: When `true`, the control manages SwiftUI focus for
-    ///     hardware keyboard input. Disable this when hosting inside another responder's
-    ///     `inputView`.
     ///   - isSubmitEnabled: External enablement flag for submit, useful while a parent
     ///     operation is busy or unavailable.
     ///   - minimumNibbleCount: Minimum number of hex nibbles required before submit is enabled.
@@ -69,7 +65,6 @@ public struct HexKeyboardInput: View {
         showsSubmitKey: Bool = true,
         returnKey: ReturnKey? = nil,
         autoFocus: Bool = true,
-        usesInternalFocus: Bool = true,
         isSubmitEnabled: Bool = true,
         minimumNibbleCount: Int = 1,
         requiresEvenNibbleCount: Bool = true,
@@ -80,7 +75,6 @@ public struct HexKeyboardInput: View {
         self.submitSystemImage = submitSystemImage
         self.returnKey = returnKey ?? (showsSubmitKey ? .send : .hidden)
         self.autoFocus = autoFocus
-        self.usesInternalFocus = usesInternalFocus
         self.isSubmitEnabled = isSubmitEnabled
         self.minimumNibbleCount = max(0, minimumNibbleCount)
         self.requiresEvenNibbleCount = requiresEvenNibbleCount
@@ -97,10 +91,10 @@ public struct HexKeyboardInput: View {
         .contentShape(Rectangle())
         .focused($isInputFocused)
         .onTapGesture {
-            focusInput()
+            isInputFocused = true
         }
         .task {
-            if autoFocus && usesInternalFocus {
+            if autoFocus {
                 isInputFocused = true
             }
             normalizeBoundText()
@@ -109,7 +103,6 @@ public struct HexKeyboardInput: View {
             normalizeBoundText()
         }
         .hardwareKeyboardInput(
-            isEnabled: usesInternalFocus,
             isFocused: $isInputFocused,
             handleKeyPress: handleKeyPress,
             handleDelete: deleteLastNibble,
@@ -326,7 +319,7 @@ public struct HexKeyboardInput: View {
         var hex = Self.normalizedHex(text)
         hex.append(nibble)
         text = hex
-        focusInput()
+        isInputFocused = true
         performFeedback()
     }
 
@@ -335,21 +328,21 @@ public struct HexKeyboardInput: View {
         guard !hex.isEmpty else { return }
         hex.removeLast()
         text = hex
-        focusInput()
+        isInputFocused = true
         performFeedback()
     }
 
     private func clear() {
         guard !text.isEmpty else { return }
         text = ""
-        focusInput()
+        isInputFocused = true
         performFeedback()
     }
 
     private func submit() {
         guard canSubmit else { return }
         onSubmit?()
-        focusInput()
+        isInputFocused = true
         performFeedback()
     }
 
@@ -366,11 +359,6 @@ public struct HexKeyboardInput: View {
         let normalized = Self.normalizedHex(text)
         guard text != normalized else { return }
         text = normalized
-    }
-
-    private func focusInput() {
-        guard usesInternalFocus else { return }
-        isInputFocused = true
     }
 
     private func performFeedback() {
@@ -619,13 +607,12 @@ private extension View {
 
     @ViewBuilder
     func hardwareKeyboardInput(
-        isEnabled: Bool,
         isFocused: FocusState<Bool>.Binding,
         handleKeyPress: @escaping (String) -> Bool,
         handleDelete: @escaping () -> Void,
         handleSubmit: @escaping () -> Void
     ) -> some View {
-        if isEnabled, #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *) {
+        if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *) {
             self
                 .focusable()
                 .focused(isFocused)
