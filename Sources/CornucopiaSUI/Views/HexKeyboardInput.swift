@@ -11,6 +11,7 @@ import UIKit
 public struct HexKeyboardInput: View {
 
     @Binding private var text: String
+    @Environment(\.colorScheme) private var colorScheme
     @FocusState private var isInputFocused: Bool
     @State private var isCaretVisible = true
 
@@ -130,7 +131,7 @@ public struct HexKeyboardInput: View {
 
     private var caret: some View {
         Capsule(style: .continuous)
-            .fill(Color.accentColor)
+            .fill(caretColor)
             .frame(width: 2, height: 20)
             .opacity(isCaretVisible ? 1 : 0)
             .onAppear {
@@ -138,6 +139,10 @@ public struct HexKeyboardInput: View {
                     isCaretVisible.toggle()
                 }
             }
+    }
+
+    private var caretColor: Color {
+        colorScheme == .dark ? .primary : .accentColor
     }
 
     private var keypad: some View {
@@ -277,21 +282,29 @@ private enum HexKeyboardKeyRole {
     case zero
     case action
 
-    var tint: Color {
-        switch self {
+    func tint(for colorScheme: ColorScheme) -> Color {
+        if colorScheme == .dark, self == .hexLetter {
+            return Color(red: 0.78, green: 0.86, blue: 1)
+        }
+
+        return switch self {
             case .digit:
-                .primary
+                Color.primary
             case .hexLetter:
-                .accentColor
+                Color.accentColor
             case .zero:
-                .white
+                Color.white
             case .action:
-                .primary.opacity(0.76)
+                Color.primary.opacity(0.76)
         }
     }
 
-    var background: Color {
-        switch self {
+    func background(for colorScheme: ColorScheme) -> Color {
+        if colorScheme == .dark, self == .hexLetter {
+            return Color(red: 0.15, green: 0.18, blue: 0.25)
+        }
+
+        return switch self {
             case .digit:
                 Color.primary.opacity(0.08)
             case .hexLetter:
@@ -303,8 +316,12 @@ private enum HexKeyboardKeyRole {
         }
     }
 
-    var pressedBackground: Color {
-        switch self {
+    func pressedBackground(for colorScheme: ColorScheme) -> Color {
+        if colorScheme == .dark, self == .hexLetter {
+            return Color(red: 0.2, green: 0.25, blue: 0.36)
+        }
+
+        return switch self {
             case .digit:
                 Color.primary.opacity(0.22)
             case .hexLetter:
@@ -316,8 +333,12 @@ private enum HexKeyboardKeyRole {
         }
     }
 
-    var border: Color {
-        switch self {
+    func border(for colorScheme: ColorScheme) -> Color {
+        if colorScheme == .dark, self == .hexLetter {
+            return Color(red: 0.42, green: 0.52, blue: 0.7)
+        }
+
+        return switch self {
             case .digit:
                 Color.primary.opacity(0.06)
             case .hexLetter:
@@ -332,11 +353,13 @@ private enum HexKeyboardKeyRole {
 
 private struct HexKeyboardKeyStyle: ButtonStyle {
 
+    @Environment(\.colorScheme) private var colorScheme
+
     var role: HexKeyboardKeyRole = .digit
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .foregroundStyle(role.tint)
+            .foregroundStyle(role.tint(for: colorScheme))
             .background {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .fill(keyBackground(isPressed: configuration.isPressed))
@@ -352,11 +375,11 @@ private struct HexKeyboardKeyStyle: ButtonStyle {
     }
 
     private func keyBackground(isPressed: Bool) -> Color {
-        isPressed ? role.pressedBackground : role.background
+        isPressed ? role.pressedBackground(for: colorScheme) : role.background(for: colorScheme)
     }
 
     private func keyBorder(isPressed: Bool) -> Color {
-        isPressed ? Color.accentColor.opacity(0.65) : role.border
+        isPressed ? Color.accentColor.opacity(0.65) : role.border(for: colorScheme)
     }
 }
 
