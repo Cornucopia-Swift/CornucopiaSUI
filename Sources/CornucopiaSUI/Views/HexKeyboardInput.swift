@@ -11,10 +11,14 @@ import UIKit
 public struct HexKeyboardInput: View {
 
     @Binding private var text: String
+    @FocusState private var isInputFocused: Bool
+    @State private var isCaretVisible = true
 
     private let placeholder: String
     private let submitSystemImage: String
     private let isSubmitEnabled: Bool
+    private let minimumNibbleCount: Int
+    private let requiresEvenNibbleCount: Bool
     private let onSubmit: (() -> Void)?
 
     public init(
@@ -22,12 +26,16 @@ public struct HexKeyboardInput: View {
         placeholder: String = "Hex payload",
         submitSystemImage: String = "paperplane.fill",
         isSubmitEnabled: Bool = true,
+        minimumNibbleCount: Int = 1,
+        requiresEvenNibbleCount: Bool = true,
         onSubmit: (() -> Void)? = nil
     ) {
         self._text = text
         self.placeholder = placeholder
         self.submitSystemImage = submitSystemImage
         self.isSubmitEnabled = isSubmitEnabled
+        self.minimumNibbleCount = max(0, minimumNibbleCount)
+        self.requiresEvenNibbleCount = requiresEvenNibbleCount
         self.onSubmit = onSubmit
     }
 
@@ -38,18 +46,42 @@ public struct HexKeyboardInput: View {
         }
         .padding(10)
         .background(.bar)
+        .contentShape(Rectangle())
+        .focused($isInputFocused)
+        .onTapGesture {
+            isInputFocused = true
+        }
+        .task {
+            isInputFocused = true
+        }
+        .hardwareKeyboardInput(
+            isFocused: $isInputFocused,
+            handleKeyPress: handleKeyPress,
+            handleDelete: deleteLastNibble,
+            handleSubmit: submit
+        )
     }
 
     private var display: some View {
         HStack(spacing: 8) {
             ScrollView(.horizontal, showsIndicators: false) {
-                Text(displayText)
-                    .font(.body.monospaced())
-                    .foregroundStyle(text.isEmpty ? .secondary : .primary)
-                    .lineLimit(1)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
+                HStack(spacing: 2) {
+                    if text.isEmpty {
+                        Text(placeholder)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    } else {
+                        byteDisplay
+                    }
+
+                    if !text.isEmpty {
+                        caret
+                    }
+                }
+                .font(.body)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
             }
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
 
@@ -63,6 +95,37 @@ public struct HexKeyboardInput: View {
             .disabled(!canSubmit)
             .accessibilityLabel("Send hex payload")
         }
+    }
+
+    private var byteDisplay: some View {
+        HStack(spacing: 0) {
+            let bytes = Self.groupedHexBytes(text)
+            ForEach(Array(bytes.enumerated()), id: \.offset) { index, byte in
+                if index > 0 {
+                    Text(Self.byteSeparator)
+                        .foregroundStyle(.secondary)
+                }
+                Text(byte)
+                    .foregroundStyle(byteForegroundStyle(at: index))
+            }
+        }
+        .lineLimit(1)
+    }
+
+    private func byteForegroundStyle(at index: Int) -> Color {
+        index.isMultiple(of: 2) ? .primary : .primary.opacity(0.62)
+    }
+
+    private var caret: some View {
+        Capsule(style: .continuous)
+            .fill(Color.accentColor)
+            .frame(width: 2, height: 20)
+            .opacity(isCaretVisible ? 1 : 0)
+            .onAppear {
+                withAnimation(.easeInOut(duration: 0.55).repeatForever(autoreverses: true)) {
+                    isCaretVisible.toggle()
+                }
+            }
     }
 
     private var keypad: some View {
@@ -114,18 +177,22 @@ public struct HexKeyboardInput: View {
         .accessibilityLabel(accessibilityLabel)
     }
 
-    private var displayText: String {
-        text.isEmpty ? placeholder : text
+    private var canSubmit: Bool {
+        isSubmitEnabled
+            && normalizedNibbleCount >= minimumNibbleCount
+            && (!requiresEvenNibbleCount || normalizedNibbleCount.isMultiple(of: 2))
+            && onSubmit != nil
     }
 
-    private var canSubmit: Bool {
-        isSubmitEnabled && !Self.normalizedHex(text).isEmpty && onSubmit != nil
+    private var normalizedNibbleCount: Int {
+        Self.normalizedHex(text).count
     }
 
     private func append(_ nibble: String) {
         var hex = Self.normalizedHex(text)
         hex.append(nibble)
         text = Self.groupedHex(hex)
+        isInputFocused = true
         feedback()
     }
 
@@ -134,23 +201,36 @@ public struct HexKeyboardInput: View {
         guard !hex.isEmpty else { return }
         hex.removeLast()
         text = Self.groupedHex(hex)
+        isInputFocused = true
         feedback()
     }
 
     private func clear() {
         guard !text.isEmpty else { return }
         text = ""
+        isInputFocused = true
         feedback()
     }
 
     private func submit() {
         guard canSubmit else { return }
         onSubmit?()
+        isInputFocused = true
         feedback()
+    }
+
+    private func handleKeyPress(_ characters: String) -> Bool {
+        for character in characters {
+            if character.isHexDigit {
+                append(String(character).uppercased())
+            }
+        }
+        return characters.contains(where: \.isHexDigit)
     }
 
     private func feedback() {
 #if canImport(UIKit)
+        UIDevice.current.playInputClick()
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
 #endif
     }
@@ -163,14 +243,20 @@ public struct HexKeyboardInput: View {
     }
 
     public static func groupedHex(_ input: String) -> String {
-        let hex = normalizedHex(input)
-        return hex.enumerated().reduce(into: "") { result, pair in
-            if pair.offset > 0 && pair.offset.isMultiple(of: 2) {
-                result.append(" ")
+        groupedHexBytes(input).joined(separator: byteSeparator)
+    }
+
+    public static func groupedHexBytes(_ input: String) -> [String] {
+        normalizedHex(input).reduce(into: [String]()) { result, character in
+            if let lastIndex = result.indices.last, result[lastIndex].count < 2 {
+                result[lastIndex].append(character)
+            } else {
+                result.append(String(character))
             }
-            result.append(pair.element)
         }
     }
+
+    public static let byteSeparator = "\u{2009}"
 }
 
 private struct HexKeyboardKeyStyle: ButtonStyle {
@@ -180,15 +266,56 @@ private struct HexKeyboardKeyStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .foregroundStyle(tint)
-            .background(keyBackground(isPressed: configuration.isPressed))
+            .background {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(keyBackground(isPressed: configuration.isPressed))
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .strokeBorder(keyBorder(isPressed: configuration.isPressed), lineWidth: 1)
+            }
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .scaleEffect(configuration.isPressed ? 0.96 : 1)
-            .animation(.easeOut(duration: 0.08), value: configuration.isPressed)
+            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .animation(.easeOut(duration: 0.06), value: configuration.isPressed)
     }
 
-    private func keyBackground(isPressed: Bool) -> some ShapeStyle {
-        isPressed ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.quaternary)
+    private func keyBackground(isPressed: Bool) -> Color {
+        isPressed ? Color.primary.opacity(0.22) : Color.primary.opacity(0.08)
+    }
+
+    private func keyBorder(isPressed: Bool) -> Color {
+        isPressed ? Color.accentColor.opacity(0.65) : Color.clear
+    }
+}
+
+private extension View {
+
+    @ViewBuilder
+    func hardwareKeyboardInput(
+        isFocused: FocusState<Bool>.Binding,
+        handleKeyPress: @escaping (String) -> Bool,
+        handleDelete: @escaping () -> Void,
+        handleSubmit: @escaping () -> Void
+    ) -> some View {
+        if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *) {
+            self
+                .focusable()
+                .focused(isFocused)
+                .onKeyPress(phases: .down) { press in
+                    if press.key == .delete {
+                        handleDelete()
+                        return .handled
+                    }
+                    if press.key == .return {
+                        handleSubmit()
+                        return .handled
+                    }
+                    return handleKeyPress(press.characters) ? .handled : .ignored
+                }
+        } else {
+            self
+        }
     }
 }
 
@@ -198,6 +325,8 @@ private struct HexKeyboardInputPreview: View {
         case shortDiagnostic
         case longPayload
         case sendingDisabled
+        case oddNibbleBlocked
+        case minimumLengthBlocked
     }
 
     @State private var text: String
@@ -215,14 +344,34 @@ private struct HexKeyboardInputPreview: View {
             HexKeyboardInput(
                 $text,
                 placeholder: "Hex message",
-                isSubmitEnabled: scenario != .sendingDisabled
+                isSubmitEnabled: scenario != .sendingDisabled,
+                minimumNibbleCount: minimumNibbleCount,
+                requiresEvenNibbleCount: requiresEvenNibbleCount
             ) {}
         }
         .background(Color.gray.opacity(0.12))
     }
 
-    private static func initialText(for scenario: Scenario) -> String {
+    private var minimumNibbleCount: Int {
         switch scenario {
+            case .minimumLengthBlocked:
+                8
+            default:
+                1
+        }
+    }
+
+    private var requiresEvenNibbleCount: Bool {
+        switch scenario {
+            case .oddNibbleBlocked:
+                true
+            default:
+                true
+        }
+    }
+
+    private static func initialText(for scenario: Scenario) -> String {
+        let text = switch scenario {
             case .empty:
                 ""
             case .shortDiagnostic:
@@ -231,7 +380,12 @@ private struct HexKeyboardInputPreview: View {
                 "36 02 00 10 20 30 40 50 60 70 80 90 A0 B0 C0 D0"
             case .sendingDisabled:
                 "3E 00"
+            case .oddNibbleBlocked:
+                "22 F"
+            case .minimumLengthBlocked:
+                "22 F1"
         }
+        return HexKeyboardInput.groupedHex(text)
     }
 }
 
@@ -249,4 +403,12 @@ private struct HexKeyboardInputPreview: View {
 
 #Preview("Hex Keyboard Sending Disabled") {
     HexKeyboardInputPreview(.sendingDisabled)
+}
+
+#Preview("Hex Keyboard Odd Nibble Blocked") {
+    HexKeyboardInputPreview(.oddNibbleBlocked)
+}
+
+#Preview("Hex Keyboard Minimum Length Blocked") {
+    HexKeyboardInputPreview(.minimumLengthBlocked)
 }
