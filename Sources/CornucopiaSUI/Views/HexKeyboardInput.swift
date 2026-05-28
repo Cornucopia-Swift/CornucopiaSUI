@@ -63,7 +63,7 @@ public struct HexKeyboardInput: View {
     }
 
     private var display: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 0) {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 2) {
                     if text.isEmpty {
@@ -80,21 +80,33 @@ public struct HexKeyboardInput: View {
                 }
                 .font(.body)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 12)
+                .padding(.leading, 12)
+                .padding(.trailing, 8)
                 .padding(.vertical, 10)
             }
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
 
             Button {
                 submit()
             } label: {
                 Image(systemName: submitSystemImage)
+                    .font(.callout.weight(.bold))
                     .frame(width: 44, height: 40)
+                    .contentShape(Rectangle())
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(HexKeyboardSubmitButtonStyle())
             .disabled(!canSubmit)
             .accessibilityLabel("Send hex payload")
         }
+        .background(displayBackground)
+    }
+
+    private var displayBackground: some View {
+        RoundedRectangle(cornerRadius: 8, style: .continuous)
+            .fill(.regularMaterial)
+            .overlay {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.16), lineWidth: 1)
+            }
     }
 
     private var byteDisplay: some View {
@@ -136,7 +148,7 @@ public struct HexKeyboardInput: View {
                 hexKey("7")
                 hexKey("8")
                 hexKey("9")
-                hexKey("0")
+                hexKey("0", role: .zero)
                 actionKey("delete.left", accessibilityLabel: "Delete") {
                     deleteLastNibble()
                 }
@@ -150,12 +162,12 @@ public struct HexKeyboardInput: View {
     private func keypadRow(_ keys: [String]) -> some View {
         HStack(spacing: 6) {
             ForEach(keys, id: \.self) { key in
-                hexKey(key)
+                hexKey(key, role: key.isHexLetter ? .hexLetter : .digit)
             }
         }
     }
 
-    private func hexKey(_ key: String) -> some View {
+    private func hexKey(_ key: String, role: HexKeyboardKeyRole = .digit) -> some View {
         Button {
             append(key)
         } label: {
@@ -163,7 +175,7 @@ public struct HexKeyboardInput: View {
                 .font(.title3.monospaced().weight(.semibold))
                 .frame(maxWidth: .infinity, minHeight: 42)
         }
-        .buttonStyle(HexKeyboardKeyStyle())
+        .buttonStyle(HexKeyboardKeyStyle(role: role))
         .accessibilityLabel("Hex \(key)")
     }
 
@@ -173,7 +185,7 @@ public struct HexKeyboardInput: View {
                 .font(.title3.weight(.semibold))
                 .frame(maxWidth: .infinity, minHeight: 42)
         }
-        .buttonStyle(HexKeyboardKeyStyle(tint: .secondary))
+        .buttonStyle(HexKeyboardKeyStyle(role: .action))
         .accessibilityLabel(accessibilityLabel)
     }
 
@@ -259,13 +271,72 @@ public struct HexKeyboardInput: View {
     public static let byteSeparator = "\u{2009}"
 }
 
+private enum HexKeyboardKeyRole {
+    case digit
+    case hexLetter
+    case zero
+    case action
+
+    var tint: Color {
+        switch self {
+            case .digit:
+                .primary
+            case .hexLetter:
+                .accentColor
+            case .zero:
+                .white
+            case .action:
+                .primary.opacity(0.76)
+        }
+    }
+
+    var background: Color {
+        switch self {
+            case .digit:
+                Color.primary.opacity(0.08)
+            case .hexLetter:
+                Color.accentColor.opacity(0.16)
+            case .zero:
+                Color.accentColor
+            case .action:
+                Color.secondary.opacity(0.22)
+        }
+    }
+
+    var pressedBackground: Color {
+        switch self {
+            case .digit:
+                Color.primary.opacity(0.22)
+            case .hexLetter:
+                Color.accentColor.opacity(0.28)
+            case .zero:
+                Color.accentColor.opacity(0.78)
+            case .action:
+                Color.secondary.opacity(0.34)
+        }
+    }
+
+    var border: Color {
+        switch self {
+            case .digit:
+                Color.primary.opacity(0.06)
+            case .hexLetter:
+                Color.accentColor.opacity(0.2)
+            case .zero:
+                Color.accentColor.opacity(0.85)
+            case .action:
+                Color.secondary.opacity(0.18)
+        }
+    }
+}
+
 private struct HexKeyboardKeyStyle: ButtonStyle {
 
-    var tint: Color = .primary
+    var role: HexKeyboardKeyRole = .digit
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .foregroundStyle(tint)
+            .foregroundStyle(role.tint)
             .background {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .fill(keyBackground(isPressed: configuration.isPressed))
@@ -281,11 +352,40 @@ private struct HexKeyboardKeyStyle: ButtonStyle {
     }
 
     private func keyBackground(isPressed: Bool) -> Color {
-        isPressed ? Color.primary.opacity(0.22) : Color.primary.opacity(0.08)
+        isPressed ? role.pressedBackground : role.background
     }
 
     private func keyBorder(isPressed: Bool) -> Color {
-        isPressed ? Color.accentColor.opacity(0.65) : Color.clear
+        isPressed ? Color.accentColor.opacity(0.65) : role.border
+    }
+}
+
+private struct HexKeyboardSubmitButtonStyle: ButtonStyle {
+
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(foreground)
+            .opacity(configuration.isPressed ? 0.68 : 1)
+            .scaleEffect(configuration.isPressed ? 0.94 : 1)
+            .animation(.easeOut(duration: 0.06), value: configuration.isPressed)
+    }
+
+    private var foreground: Color {
+        isEnabled ? .accentColor : .secondary.opacity(0.55)
+    }
+}
+
+private extension String {
+
+    var isHexLetter: Bool {
+        switch self {
+            case "A", "B", "C", "D", "E", "F":
+                true
+            default:
+                false
+        }
     }
 }
 
