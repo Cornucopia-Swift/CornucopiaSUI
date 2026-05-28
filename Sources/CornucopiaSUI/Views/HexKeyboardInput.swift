@@ -8,6 +8,12 @@ import SwiftUI
 import UIKit
 #endif
 
+/// A reusable SwiftUI input control for entering hexadecimal payloads.
+///
+/// `HexKeyboardInput` keeps its bound text normalized to uppercase hex digits while
+/// presenting the value as grouped bytes. It supports touch input through an
+/// on-screen hex keypad, hardware keyboard entry, single-nibble deletion, clearing
+/// the current payload, and an optional submit action.
 public struct HexKeyboardInput: View {
 
     @Binding private var text: String
@@ -22,6 +28,18 @@ public struct HexKeyboardInput: View {
     private let requiresEvenNibbleCount: Bool
     private let onSubmit: (() -> Void)?
 
+    /// Creates a hex payload input with a built-in keypad and optional submit action.
+    ///
+    /// - Parameters:
+    ///   - text: The bound payload text. The control normalizes this value to uppercase
+    ///     hexadecimal digits and removes separators such as spaces or `0x` prefixes.
+    ///   - placeholder: Placeholder text shown while the payload is empty.
+    ///   - submitSystemImage: SF Symbol used for the submit key.
+    ///   - isSubmitEnabled: External enablement flag for submit, useful while a parent
+    ///     operation is busy or unavailable.
+    ///   - minimumNibbleCount: Minimum number of hex nibbles required before submit is enabled.
+    ///   - requiresEvenNibbleCount: When `true`, submit is enabled only for full-byte payloads.
+    ///   - onSubmit: Called when the user taps the submit key or presses Return.
     public init(
         _ text: Binding<String>,
         placeholder: String = "Hex payload",
@@ -91,16 +109,16 @@ public struct HexKeyboardInput: View {
             }
 
             Button {
-                submit()
+                clear()
             } label: {
-                Image(systemName: submitSystemImage)
+                Image(systemName: "xmark")
                     .font(.callout.weight(.bold))
                     .frame(width: 44, height: 40)
                     .contentShape(Rectangle())
             }
-            .buttonStyle(HexKeyboardSubmitButtonStyle(isSubmitEnabled: canSubmit))
-            .disabled(!canSubmit)
-            .accessibilityLabel("Send hex payload")
+            .buttonStyle(HexKeyboardInlineButtonStyle(isEnabled: !text.isEmpty))
+            .disabled(text.isEmpty)
+            .accessibilityLabel("Clear hex payload")
         }
         .background(displayBackground)
     }
@@ -158,12 +176,8 @@ public struct HexKeyboardInput: View {
                 hexKey("8")
                 hexKey("9")
                 hexKey("0", role: .zero)
-                actionKey("delete.left", accessibilityLabel: "Delete") {
-                    deleteLastNibble()
-                }
-                actionKey("xmark", accessibilityLabel: "Clear") {
-                    clear()
-                }
+                deleteKey
+                submitKey
             }
         }
     }
@@ -188,14 +202,30 @@ public struct HexKeyboardInput: View {
         .accessibilityLabel("Hex \(key)")
     }
 
-    private func actionKey(_ systemImage: String, accessibilityLabel: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: systemImage)
+    private var deleteKey: some View {
+        Button {
+            deleteLastNibble()
+        } label: {
+            Image(systemName: "delete.left")
                 .font(.title3.weight(.semibold))
                 .frame(maxWidth: .infinity, minHeight: 42)
         }
         .buttonStyle(HexKeyboardKeyStyle(role: .action))
-        .accessibilityLabel(accessibilityLabel)
+        .disabled(text.isEmpty)
+        .accessibilityLabel("Delete")
+    }
+
+    private var submitKey: some View {
+        Button {
+            submit()
+        } label: {
+            Image(systemName: submitSystemImage)
+                .font(.title3.weight(.semibold))
+                .frame(maxWidth: .infinity, minHeight: 42)
+        }
+        .buttonStyle(HexKeyboardKeyStyle(role: canSubmit ? .submit : .action))
+        .disabled(!canSubmit)
+        .accessibilityLabel("Send hex payload")
     }
 
     private var canSubmit: Bool {
@@ -262,6 +292,10 @@ public struct HexKeyboardInput: View {
 #endif
     }
 
+    /// Returns only uppercase hexadecimal digits from `input`.
+    ///
+    /// The normalization removes `0x` prefixes and any non-hex characters, making it
+    /// suitable for display and keypad editing.
     public static func normalizedHex(_ input: String) -> String {
         input
             .replacingOccurrences(of: "0x", with: "", options: .caseInsensitive)
@@ -269,6 +303,11 @@ public struct HexKeyboardInput: View {
             .uppercased()
     }
 
+    /// Converts hex text into bytes.
+    ///
+    /// Whitespace and commas are accepted as separators. Invalid non-separator
+    /// characters return `nil`. When `requiresEvenNibbleCount` is `false`, an odd
+    /// nibble count is left-padded with `0` for conversion.
     public static func byteArray(from input: String, requiresEvenNibbleCount: Bool = true) -> [UInt8]? {
         var hex = ""
         let payload = input.replacingOccurrences(of: "0x", with: "", options: .caseInsensitive)
@@ -300,10 +339,12 @@ public struct HexKeyboardInput: View {
         return bytes
     }
 
+    /// Formats hex text as byte groups separated by `byteSeparator`.
     public static func groupedHex(_ input: String) -> String {
         groupedHexBytes(input).joined(separator: byteSeparator)
     }
 
+    /// Splits normalized hex text into one- or two-character byte groups.
     public static func groupedHexBytes(_ input: String) -> [String] {
         normalizedHex(input).reduce(into: [String]()) { result, character in
             if let lastIndex = result.indices.last, result[lastIndex].count < 2 {
@@ -314,6 +355,7 @@ public struct HexKeyboardInput: View {
         }
     }
 
+    /// Thin-space separator used when rendering grouped bytes.
     public static let byteSeparator = "\u{2009}"
 }
 
@@ -322,6 +364,7 @@ private enum HexKeyboardKeyRole {
     case hexLetter
     case zero
     case action
+    case submit
 
     func tint(for colorScheme: ColorScheme) -> Color {
         if colorScheme == .dark, self == .hexLetter {
@@ -337,6 +380,8 @@ private enum HexKeyboardKeyRole {
                 Color.white
             case .action:
                 Color.primary.opacity(0.76)
+            case .submit:
+                Color.white
         }
     }
 
@@ -354,6 +399,8 @@ private enum HexKeyboardKeyRole {
                 Color.accentColor
             case .action:
                 Color.secondary.opacity(0.22)
+            case .submit:
+                Color.accentColor
         }
     }
 
@@ -371,6 +418,8 @@ private enum HexKeyboardKeyRole {
                 Color.accentColor.opacity(0.78)
             case .action:
                 Color.secondary.opacity(0.34)
+            case .submit:
+                Color.accentColor.opacity(0.78)
         }
     }
 
@@ -388,6 +437,8 @@ private enum HexKeyboardKeyRole {
                 Color.accentColor.opacity(0.85)
             case .action:
                 Color.secondary.opacity(0.18)
+            case .submit:
+                Color.accentColor.opacity(0.85)
         }
     }
 }
@@ -424,11 +475,11 @@ private struct HexKeyboardKeyStyle: ButtonStyle {
     }
 }
 
-private struct HexKeyboardSubmitButtonStyle: ButtonStyle {
+private struct HexKeyboardInlineButtonStyle: ButtonStyle {
 
     @Environment(\.colorScheme) private var colorScheme
 
-    let isSubmitEnabled: Bool
+    let isEnabled: Bool
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -440,10 +491,10 @@ private struct HexKeyboardSubmitButtonStyle: ButtonStyle {
 
     private var foreground: Color {
         if colorScheme == .dark {
-            return isSubmitEnabled ? .primary : .secondary.opacity(0.38)
+            return isEnabled ? .primary : .secondary.opacity(0.38)
         }
 
-        return isSubmitEnabled ? .accentColor : .secondary.opacity(0.55)
+        return isEnabled ? .accentColor : .secondary.opacity(0.55)
     }
 }
 
