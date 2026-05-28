@@ -17,6 +17,14 @@ import UIKit
 /// the current payload, and an optional submit action.
 public struct HexKeyboardInput: View {
 
+    /// Semantic action shown in the keyboard return-key position.
+    public enum ReturnKey {
+        case hidden
+        case next
+        case done
+        case send
+    }
+
     @Binding private var text: String
     @Environment(\.colorScheme) private var colorScheme
     @FocusState private var isInputFocused: Bool
@@ -27,7 +35,7 @@ public struct HexKeyboardInput: View {
 
     private let placeholder: String
     private let submitSystemImage: String
-    private let showsSubmitKey: Bool
+    private let returnKey: ReturnKey
     private let autoFocus: Bool
     private let isSubmitEnabled: Bool
     private let minimumNibbleCount: Int
@@ -42,6 +50,8 @@ public struct HexKeyboardInput: View {
     ///   - placeholder: Placeholder text shown while the payload is empty.
     ///   - submitSystemImage: SF Symbol used for the submit key.
     ///   - showsSubmitKey: When `false`, hides the submit key for inline editing contexts.
+    ///   - returnKey: Semantic action shown in the return-key position. When omitted,
+    ///     `showsSubmitKey` controls whether a send key or no return key is shown.
     ///   - autoFocus: When `true`, the control claims keyboard focus when it appears.
     ///   - isSubmitEnabled: External enablement flag for submit, useful while a parent
     ///     operation is busy or unavailable.
@@ -53,6 +63,7 @@ public struct HexKeyboardInput: View {
         placeholder: String = "Hex payload",
         submitSystemImage: String = "paperplane.fill",
         showsSubmitKey: Bool = true,
+        returnKey: ReturnKey? = nil,
         autoFocus: Bool = true,
         isSubmitEnabled: Bool = true,
         minimumNibbleCount: Int = 1,
@@ -62,7 +73,7 @@ public struct HexKeyboardInput: View {
         self._text = text
         self.placeholder = placeholder
         self.submitSystemImage = submitSystemImage
-        self.showsSubmitKey = showsSubmitKey
+        self.returnKey = returnKey ?? (showsSubmitKey ? .send : .hidden)
         self.autoFocus = autoFocus
         self.isSubmitEnabled = isSubmitEnabled
         self.minimumNibbleCount = max(0, minimumNibbleCount)
@@ -203,9 +214,9 @@ public struct HexKeyboardInput: View {
                 hexKey("0", role: .zero)
                     .frame(width: keyWidth)
                 deleteKey
-                    .frame(width: showsSubmitKey ? keyWidth : (keyWidth * 2) + spacing)
-                if showsSubmitKey {
-                    submitKey
+                    .frame(width: showsReturnKey ? keyWidth : (keyWidth * 2) + spacing)
+                if showsReturnKey {
+                    returnKeyButton
                         .frame(width: keyWidth)
                 }
             }
@@ -246,25 +257,58 @@ public struct HexKeyboardInput: View {
         .accessibilityLabel("Delete")
     }
 
-    private var submitKey: some View {
+    private var returnKeyButton: some View {
         Button {
             submit()
         } label: {
-            Image(systemName: submitSystemImage)
+            Image(systemName: returnKeySystemImage)
                 .font(.title3.weight(.semibold))
                 .frame(maxWidth: .infinity, minHeight: 42)
         }
         .buttonStyle(HexKeyboardKeyStyle(role: canSubmit ? .submit : .action))
         .disabled(!canSubmit)
-        .accessibilityLabel("Send hex payload")
+        .accessibilityLabel(returnKeyAccessibilityLabel)
     }
 
     private var canSubmit: Bool {
         isSubmitEnabled
-            && showsSubmitKey
+            && showsReturnKey
             && normalizedNibbleCount >= minimumNibbleCount
             && (!requiresEvenNibbleCount || normalizedNibbleCount.isMultiple(of: 2))
             && onSubmit != nil
+    }
+
+    private var showsReturnKey: Bool {
+        if case .hidden = returnKey {
+            return false
+        }
+        return true
+    }
+
+    private var returnKeySystemImage: String {
+        switch returnKey {
+            case .hidden:
+                submitSystemImage
+            case .next:
+                "arrow.right"
+            case .done:
+                "keyboard.chevron.compact.down"
+            case .send:
+                submitSystemImage
+        }
+    }
+
+    private var returnKeyAccessibilityLabel: String {
+        switch returnKey {
+            case .hidden:
+                "Return"
+            case .next:
+                "Next"
+            case .done:
+                "Done"
+            case .send:
+                "Send hex payload"
+        }
     }
 
     private var normalizedNibbleCount: Int {
