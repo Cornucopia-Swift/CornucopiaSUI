@@ -321,7 +321,7 @@ public struct VINKeyboardInput: View {
 
             HStack(spacing: 6) {
                 identityPreview
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                Spacer(minLength: 0)
                 deleteKey
                 submitKey
             }
