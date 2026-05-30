@@ -419,8 +419,13 @@ public struct VINTextField: View {
         .onChange(of: validationState) { newState in
             validationStateBinding?.wrappedValue = newState
         }
+        .task {
+            // Validate any pre-populated value so the status reflects the initial
+            // text instead of staying `.empty` until the first edit.
+            updateValidationState(text.wrappedValue)
+        }
     }
-    
+
     private func updateValidationState(_ vin: String) {
         validationState = validateVIN(vin)
     }
