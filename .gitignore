@@ -19,4 +19,5 @@ project.xcworkspace
 xcuserdata
 xcshareddata
 DerivedData
+*.xcodeproj
 Package.resolved
