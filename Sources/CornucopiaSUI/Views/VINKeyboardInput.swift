@@ -320,10 +320,38 @@ public struct VINKeyboardInput: View {
             }
 
             HStack(spacing: 6) {
-                Spacer(minLength: 0)
+                identityPreview
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 deleteKey
                 submitKey
             }
+        }
+    }
+
+    @ViewBuilder
+    private var identityPreview: some View {
+        if let identity = VINIdentity.decoding(text.wrappedValue) {
+            HStack(spacing: 8) {
+                Text(identity.flag)
+                    .font(.title2)
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(identity.countryName)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+
+                    Text(identity.manufacturer ?? "—")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
+            }
+            .padding(.leading, 4)
+            .transition(.opacity)
+            .accessibilityElement(children: .combine)
         }
     }
 
