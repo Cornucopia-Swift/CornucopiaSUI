@@ -22,6 +22,7 @@ public struct VINKeyboardInput: View {
 
     @State private var internalText = ""
     @State private var validationState: VINTextField.ValidationState = .empty
+    @State private var isActiveSlotPulsing = false
     @Environment(\.colorScheme) private var colorScheme
     @FocusState private var isInputFocused: Bool
 
@@ -157,6 +158,7 @@ public struct VINKeyboardInput: View {
                 requestFocus()
             }
             normalizeBoundText()
+            isActiveSlotPulsing = true
         }
         .onChange(of: text.wrappedValue) { _ in
             normalizeBoundText()
@@ -253,9 +255,42 @@ public struct VINKeyboardInput: View {
             Capsule(style: .continuous)
                 .fill(slotColor(at: index))
                 .frame(height: 4)
+                .overlay {
+                    if index == activeIndex {
+                        Capsule(style: .continuous)
+                            .fill(activeMarkerColor(at: index))
+                            .opacity(isActiveSlotPulsing ? 0.9 : 0.2)
+                            .animation(
+                                .easeInOut(duration: 0.8).repeatForever(autoreverses: true),
+                                value: isActiveSlotPulsing
+                            )
+                    }
+                }
         }
         .frame(width: width)
         .accessibilityHidden(true)
+    }
+
+    /// The slot index awaiting the next character, or `nil` when the VIN is full.
+    private var activeIndex: Int? {
+        let count = text.wrappedValue.count
+        return count < 17 ? count : nil
+    }
+
+    private func activeMarkerColor(at index: Int) -> Color {
+        index == 8 ? .orange : .accentColor
+    }
+
+    /// Semantic group color for a slot position (WMI / VDS / VIS).
+    private func groupColor(at index: Int) -> Color {
+        switch index {
+            case 0..<3:
+                .blue
+            case 3..<9:
+                .orange
+            default:
+                .green
+        }
     }
 
     private func character(at index: Int) -> String {
@@ -267,24 +302,14 @@ public struct VINKeyboardInput: View {
     private func slotColor(at index: Int) -> Color {
         let count = text.wrappedValue.count
 
-        if index == 8 {
-            if count > index {
-                return .orange
-            }
-            if count == index {
-                return .orange.opacity(0.55)
-            }
-        }
-
+        // Filled slots reflect validity; the check-digit position stays orange.
         if count > index {
-            return validationState.inputType.color
+            return index == 8 ? .orange : validationState.inputType.color
         }
 
-        if count == index {
-            return Color.accentColor.opacity(0.6)
-        }
-
-        return Color.secondary.opacity(colorScheme == .dark ? 0.28 : 0.22)
+        // Empty and active baseline: a subtle tint in the slot's group color.
+        // The active slot's emphasis is layered on top by the pulsing overlay.
+        return groupColor(at: index).opacity(colorScheme == .dark ? 0.32 : 0.22)
     }
 
     private var displayBackground: some View {
@@ -325,35 +350,51 @@ public struct VINKeyboardInput: View {
                 deleteKey
                 submitKey
             }
+            .animation(.easeInOut(duration: 0.25), value: previewIdentity)
         }
+    }
+
+    /// Decoded country/manufacturer for the current input, or `nil` when not yet
+    /// identifiable. Used both for rendering and as the animation trigger.
+    private var previewIdentity: VINIdentity? {
+        VINIdentity.decoding(text.wrappedValue)
     }
 
     @ViewBuilder
     private var identityPreview: some View {
-        if let identity = VINIdentity.decoding(text.wrappedValue) {
+        if let identity = previewIdentity {
             HStack(spacing: 8) {
                 Text(identity.flag)
                     .font(.title2)
 
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(identity.countryName)
+                    MarqueeText(identity.countryName, startDelay: 2)
                         .font(.caption.weight(.medium))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
+                        .frame(width: Self.identityColumnWidth)
 
-                    Text(identity.manufacturer ?? "—")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
+                    if let manufacturer = identity.manufacturer {
+                        MarqueeText(manufacturer, startDelay: 2)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .frame(width: Self.identityColumnWidth)
+                    }
                 }
             }
             .padding(.leading, 4)
-            .transition(.opacity)
-            .accessibilityElement(children: .combine)
+            .transition(.opacity.combined(with: .move(edge: .leading)))
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(identityAccessibilityLabel(identity))
         }
     }
+
+    private func identityAccessibilityLabel(_ identity: VINIdentity) -> String {
+        if let manufacturer = identity.manufacturer {
+            return "\(identity.countryName), \(manufacturer)"
+        }
+        return identity.countryName
+    }
+
+    private static let identityColumnWidth: CGFloat = 150
 
     private func keypadRow(_ keys: [String]) -> some View {
         HStack(spacing: 6) {
