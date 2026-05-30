@@ -5,6 +5,7 @@
 
 import SwiftUI
 #if canImport(UIKit)
+import AudioToolbox
 import UIKit
 #endif
 
@@ -23,6 +24,9 @@ public struct VINKeyboardInput: View {
     @State private var internalText = ""
     @State private var validationState: VINTextField.ValidationState = .empty
     @State private var isActiveSlotPulsing = false
+#if canImport(UIKit)
+    @State private var feedbackPerformer = VINKeyboardFeedbackPerformer()
+#endif
     @Environment(\.colorScheme) private var colorScheme
     @FocusState private var isInputFocused: Bool
 
@@ -552,8 +556,7 @@ public struct VINKeyboardInput: View {
 
     private func feedback() {
 #if canImport(UIKit)
-        UIDevice.current.playInputClick()
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        feedbackPerformer.perform()
 #endif
     }
 
@@ -562,6 +565,24 @@ public struct VINKeyboardInput: View {
         String(input.uppercased().filter { isValidVINCharacter($0) }.prefix(17))
     }
 }
+
+#if canImport(UIKit)
+@MainActor
+private final class VINKeyboardFeedbackPerformer {
+
+    private let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+
+    init() {
+        impactFeedback.prepare()
+    }
+
+    func perform() {
+        AudioServicesPlaySystemSound(1104)
+        impactFeedback.impactOccurred(intensity: 0.75)
+        impactFeedback.prepare()
+    }
+}
+#endif
 
 private enum VINKeyboardKeyRole {
     case letter
