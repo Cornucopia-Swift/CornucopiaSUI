@@ -126,6 +126,12 @@ The four keypad widgets (`HexKeyboardInput`, `VINKeyboardInput`, `IPv4KeyboardIn
 - **Model year is shown offline immediately** from position 10 via `VINTextField.modelYear(forPosition10:)`, then overwritten by the online value when present. Make falls back to the offline WMI manufacturer; model and vehicle type are online-only.
 - The vehicle widget shares the analysis column with the offline country/manufacturer preview: identity while typing, vehicle once ≥10 characters are present.
 
+#### Offline WMI data stance
+
+CornucopiaSUI intentionally keeps offline VIN decoding small and conservative by using `Automotive-Swift/VIN` as the source of truth for syntax, check digit, WMI/region/manufacturer, and model-year preview. Do **not** replace this with a larger scraped WMI table such as `Wal33D/nhtsa-vin-decoder`: that project has broader WMI coverage, but local comparison found several questionable manufacturer mappings, so it is not clearly better for trusted UI hints.
+
+If offline support is expanded later, prefer targeted additions to `Automotive-Swift/VIN` with tests over importing a second VIN/WMI database into CornucopiaSUI. Keep richer vehicle details (`model`, `trim`, `engine`, `bodyClass`, plant data, etc.) behind the optional online `VINVehicleDecoder` path; a complete offline vPIC-style data set would be much larger and does not belong in this SwiftUI utility library by default.
+
 #### Verified test VINs (NHTSA returns data)
 
 Serial sections are partly synthetic (so the check digit may mismatch, `ErrCode 1`), but WMI/VDS/position-10 are real, so NHTSA decodes them reliably.
