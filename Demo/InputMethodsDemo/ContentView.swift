@@ -21,6 +21,12 @@ struct ContentView: View {
                     Label("VIN", systemImage: "car")
                 }
                 .tag(1)
+
+            NetworkKeyboardDemoView()
+                .tabItem {
+                    Label("Network", systemImage: "network")
+                }
+                .tag(2)
         }
     }
 }

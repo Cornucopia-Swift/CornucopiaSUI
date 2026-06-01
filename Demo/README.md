@@ -10,6 +10,8 @@ Currently demonstrates:
   variants, and a live state / sent-payload log.
 - `VINKeyboardInput` — VIN keypad with QWERTZ/QWERTY layouts, WMI/VDS/VIS
   grouping, check-digit highlight, and live validation state.
+- `IPv4KeyboardInput` and `MACKeyboardInput` — network-address keypads with
+  octet/byte slots, constrained domain keys, live validation, and submit logs.
 
 ## Build & run
 
