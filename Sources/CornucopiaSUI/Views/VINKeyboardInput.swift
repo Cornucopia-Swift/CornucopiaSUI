@@ -8,6 +8,9 @@ import SwiftUI
 import AudioToolbox
 import UIKit
 #endif
+#if canImport(AppKit)
+import AppKit
+#endif
 
 /// A VIN input control with a domain-specific, QWERTZ/QWERTY-oriented keypad.
 ///
@@ -19,11 +22,14 @@ public struct VINKeyboardInput: View {
     public enum KeyboardLayout {
         case qwertz
         case qwerty
+        case azerty
     }
 
     @State private var internalText = ""
     @State private var validationState: VINTextField.ValidationState = .empty
     @State private var isActiveSlotPulsing = false
+    @State private var vehicleDetails: VINVehicleDetails?
+    @State private var isDecodingVehicle = false
 #if canImport(UIKit)
     @State private var feedbackPerformer = VINKeyboardFeedbackPerformer()
 #endif
@@ -38,6 +44,7 @@ public struct VINKeyboardInput: View {
     private let submitSystemImage: String
     private let autoFocus: Bool
     private let isSubmitEnabled: Bool
+    private let vehicleDecoder: VINVehicleDecoder?
     private let onSubmit: (() -> Void)?
 
     private var text: Binding<String> {
@@ -66,6 +73,7 @@ public struct VINKeyboardInput: View {
         submitSystemImage: String = "checkmark",
         autoFocus: Bool = false,
         isSubmitEnabled: Bool = true,
+        vehicleDecoder: VINVehicleDecoder? = nil,
         onSubmit: (() -> Void)? = nil
     ) {
         self.externalTextBinding = text
@@ -76,6 +84,7 @@ public struct VINKeyboardInput: View {
         self.submitSystemImage = submitSystemImage
         self.autoFocus = autoFocus
         self.isSubmitEnabled = isSubmitEnabled
+        self.vehicleDecoder = vehicleDecoder
         self.onSubmit = onSubmit
     }
 
@@ -87,6 +96,7 @@ public struct VINKeyboardInput: View {
         submitSystemImage: String = "checkmark",
         autoFocus: Bool = false,
         isSubmitEnabled: Bool = true,
+        vehicleDecoder: VINVehicleDecoder? = nil,
         onSubmit: (() -> Void)? = nil
     ) {
         self.init(
@@ -96,6 +106,7 @@ public struct VINKeyboardInput: View {
             submitSystemImage: submitSystemImage,
             autoFocus: autoFocus,
             isSubmitEnabled: isSubmitEnabled,
+            vehicleDecoder: vehicleDecoder,
             onSubmit: onSubmit
         )
     }
@@ -109,6 +120,7 @@ public struct VINKeyboardInput: View {
         submitSystemImage: String = "checkmark",
         autoFocus: Bool = false,
         isSubmitEnabled: Bool = true,
+        vehicleDecoder: VINVehicleDecoder? = nil,
         onSubmit: (() -> Void)? = nil
     ) {
         self.init(
@@ -119,6 +131,7 @@ public struct VINKeyboardInput: View {
             submitSystemImage: submitSystemImage,
             autoFocus: autoFocus,
             isSubmitEnabled: isSubmitEnabled,
+            vehicleDecoder: vehicleDecoder,
             onSubmit: onSubmit
         )
     }
@@ -132,6 +145,7 @@ public struct VINKeyboardInput: View {
         submitSystemImage: String = "checkmark",
         autoFocus: Bool = false,
         isSubmitEnabled: Bool = true,
+        vehicleDecoder: VINVehicleDecoder? = nil,
         onSubmit: (() -> Void)? = nil
     ) {
         self.init(
@@ -142,6 +156,7 @@ public struct VINKeyboardInput: View {
             submitSystemImage: submitSystemImage,
             autoFocus: autoFocus,
             isSubmitEnabled: isSubmitEnabled,
+            vehicleDecoder: vehicleDecoder,
             onSubmit: onSubmit
         )
     }
@@ -164,6 +179,9 @@ public struct VINKeyboardInput: View {
             normalizeBoundText()
             isActiveSlotPulsing = true
         }
+        .task(id: decodeKey) {
+            await decodeVehicleDetails()
+        }
         .onChange(of: text.wrappedValue) { _ in
             normalizeBoundText()
         }
@@ -175,7 +193,8 @@ public struct VINKeyboardInput: View {
             externalFocus: focusedBinding,
             handleKeyPress: handleKeyPress,
             handleDelete: deleteLastCharacter,
-            handleSubmit: submit
+            handleSubmit: submit,
+            handlePaste: paste
         )
     }
 
@@ -305,15 +324,37 @@ public struct VINKeyboardInput: View {
 
     private func slotColor(at index: Int) -> Color {
         let count = text.wrappedValue.count
+        let group = groupColor(at: index)
 
-        // Filled slots reflect validity; the check-digit position stays orange.
-        if count > index {
-            return index == 8 ? .orange : validationState.inputType.color
+        // Empty baseline: a faint tint of the slot's own group color so the WMI/VDS/VIS
+        // sections read as such before anything is typed. The active slot's emphasis is
+        // layered on top by the pulsing overlay.
+        guard count > index else {
+            return group.opacity(colorScheme == .dark ? 0.30 : 0.22)
         }
 
-        // Empty and active baseline: a subtle tint in the slot's group color.
-        // The active slot's emphasis is layered on top by the pulsing overlay.
-        return groupColor(at: index).opacity(colorScheme == .dark ? 0.32 : 0.22)
+        // Filled slot. Error states recolor the whole field so the warning is
+        // unambiguous; an accepted character instead wears its own group color so the
+        // three sections stay distinguishable rather than collapsing into one validation
+        // color (previously every typed character turned the incomplete-orange, which
+        // read as "everything is VDS").
+        switch validationState.inputType {
+            case .invalidCharacters, .tooLong:
+                return .red
+            case .validWithCheckDigitWarning where index == 8:
+                return .yellow
+            default:
+                return slotForeground(group)
+        }
+    }
+
+    /// A valid character's underscore in its group color. Brightened slightly in dark
+    /// mode and deepened in light mode so the accepted character always sits a notch
+    /// stronger than the faint empty placeholder, against either background.
+    private func slotForeground(_ group: Color) -> Color {
+        colorScheme == .dark
+            ? group.opacity(0.95)
+            : group.opacity(0.85)
     }
 
     private var displayBackground: some View {
@@ -349,12 +390,14 @@ public struct VINKeyboardInput: View {
             }
 
             HStack(spacing: 6) {
-                identityPreview
+                analysisPreview
                 Spacer(minLength: 0)
                 deleteKey
                 submitKey
             }
             .animation(.easeInOut(duration: 0.25), value: previewIdentity)
+            .animation(.easeInOut(duration: 0.25), value: vehicleDetails)
+            .animation(.easeInOut(duration: 0.25), value: isDecodingVehicle)
         }
     }
 
@@ -364,31 +407,48 @@ public struct VINKeyboardInput: View {
         VINIdentity.decoding(text.wrappedValue)
     }
 
+    /// The shared analysis column left of the delete/return keys. While only part of
+    /// the VIN is known it shows the offline-derived country and manufacturer; once the
+    /// VIN is complete and a `vehicleDecoder` is supplied, the online vehicle widget
+    /// takes over the very same space.
     @ViewBuilder
-    private var identityPreview: some View {
-        if let identity = previewIdentity {
-            HStack(spacing: 8) {
-                Text(identity.flag)
-                    .font(.title2)
+    private var analysisPreview: some View {
+        if showsVehicleDetails {
+            vehiclePreview
+        } else if let identity = previewIdentity {
+            identityColumn(identity)
+        }
+    }
 
-                VStack(alignment: .leading, spacing: 1) {
-                    MarqueeText(identity.countryName, startDelay: 2)
-                        .font(.caption.weight(.medium))
+    /// Once the VIN carries enough characters to decode (the descriptor and model-year
+    /// positions), the vehicle widget claims the shared column in place of the
+    /// country/manufacturer preview.
+    private var showsVehicleDetails: Bool {
+        decodeKey != nil
+    }
+
+    private func identityColumn(_ identity: VINIdentity) -> some View {
+        HStack(spacing: 8) {
+            Text(identity.flag)
+                .font(.title2)
+
+            VStack(alignment: .leading, spacing: 1) {
+                MarqueeText(identity.countryName, startDelay: 2)
+                    .font(.caption.weight(.medium))
+                    .frame(width: Self.identityColumnWidth)
+
+                if let manufacturer = identity.manufacturer {
+                    MarqueeText(manufacturer, startDelay: 2)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
                         .frame(width: Self.identityColumnWidth)
-
-                    if let manufacturer = identity.manufacturer {
-                        MarqueeText(manufacturer, startDelay: 2)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .frame(width: Self.identityColumnWidth)
-                    }
                 }
             }
-            .padding(.leading, 4)
-            .transition(.opacity.combined(with: .move(edge: .leading)))
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(identityAccessibilityLabel(identity))
         }
+        .padding(.leading, 4)
+        .transition(.opacity.combined(with: .move(edge: .leading)))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(identityAccessibilityLabel(identity))
     }
 
     private func identityAccessibilityLabel(_ identity: VINIdentity) -> String {
@@ -399,6 +459,113 @@ public struct VINKeyboardInput: View {
     }
 
     private static let identityColumnWidth: CGFloat = 150
+
+    private static var showsDecorativeVehicleIcon: Bool {
+#if os(iOS)
+        UIDevice.current.userInterfaceIdiom == .pad
+#else
+        true
+#endif
+    }
+
+    /// The vehicle widget that occupies the shared analysis column once enough of the
+    /// VIN is present to decode. It shows the offline-derived model year and make
+    /// immediately, marks the online lookup in progress, and enriches with the model and
+    /// vehicle type once NHTSA responds (long values scroll via `MarqueeText`).
+    @ViewBuilder
+    private var vehiclePreview: some View {
+        HStack(spacing: 8) {
+            // The icon is purely decorative; the cramped iPhone field cannot spare the
+            // width for it, so it is shown only where there is room (iPad, macOS, …).
+            if Self.showsDecorativeVehicleIcon {
+                Image(systemName: "car.side")
+                    .font(.title2)
+                    .foregroundStyle(.secondary)
+            }
+
+            vehiclePreviewContent
+                .frame(width: Self.identityColumnWidth, alignment: .leading)
+        }
+        .padding(.leading, 4)
+        .transition(.opacity.combined(with: .move(edge: .leading)))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(vehicleAccessibilityLabel)
+    }
+
+    @ViewBuilder
+    private var vehiclePreviewContent: some View {
+        if let headline = vehicleHeadline {
+            VStack(alignment: .leading, spacing: 1) {
+                MarqueeText(headline, startDelay: 2)
+                    .font(.caption.weight(.semibold))
+                    .frame(width: Self.identityColumnWidth)
+
+                if let subline = vehicleSubline {
+                    MarqueeText(subline, startDelay: 2)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .frame(width: Self.identityColumnWidth)
+                } else if isDecodingVehicle {
+                    vehicleLookupIndicator
+                }
+            }
+        } else if isDecodingVehicle {
+            vehicleLookupIndicator
+        } else {
+            Text("No vehicle details")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+        }
+    }
+
+    private var vehicleLookupIndicator: some View {
+        HStack(spacing: 4) {
+            ProgressView()
+                .controlSize(.mini)
+            Text("Looking up…")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    /// Year/make/model headline, combining the offline VIN-derived year and manufacturer
+    /// with the richer online make and model once they arrive.
+    private var vehicleHeadline: String? {
+        let year = vehicleDetails?.modelYear ?? offlineModelYear
+        let make = vehicleDetails?.make?.capitalized ?? previewIdentity?.manufacturer
+        let parts = [year, make, vehicleDetails?.model]
+            .compactMap { $0 }
+            .filter { !$0.isEmpty }
+        return parts.isEmpty ? nil : parts.joined(separator: " ")
+    }
+
+    /// Vehicle type and body class, available only from the online decode.
+    private var vehicleSubline: String? {
+        guard let details = vehicleDetails else { return nil }
+        let parts = [details.vehicleType?.capitalized, details.bodyClass]
+            .compactMap { $0 }
+            .filter { !$0.isEmpty }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    /// Model year derived offline from VIN position 10, available as soon as ten
+    /// characters are present and used as a fallback when the online decode omits it.
+    private var offlineModelYear: String? {
+        let vin = text.wrappedValue
+        guard vin.count >= 10 else { return nil }
+        let character = vin[vin.index(vin.startIndex, offsetBy: 9)]
+        return VINTextField.modelYear(forPosition10: character)
+    }
+
+    private var vehicleAccessibilityLabel: String {
+        guard let headline = vehicleHeadline else {
+            return isDecodingVehicle ? "Looking up vehicle" : ""
+        }
+        if let subline = vehicleSubline {
+            return "\(headline), \(subline)"
+        }
+        return headline
+    }
 
     private func keypadRow(_ keys: [String]) -> some View {
         HStack(spacing: 6) {
@@ -474,6 +641,12 @@ public struct VINKeyboardInput: View {
                     ["A", "S", "D", "F", "G", "H", "J", "K", "L"],
                     ["Z", "X", "C", "V", "B", "N", "M"]
                 ]
+            case .azerty:
+                [
+                    ["A", "Z", "E", "R", "T", "Y", "U", "P"],
+                    ["S", "D", "F", "G", "H", "J", "K", "L", "M"],
+                    ["W", "X", "C", "V", "B", "N"]
+                ]
         }
     }
 
@@ -537,6 +710,29 @@ public struct VINKeyboardInput: View {
         return didHandle
     }
 
+    /// Replaces the value with the normalized clipboard contents. Pasting overwrites rather
+    /// than appends, matching how a full VIN is usually transferred from another source.
+    private func paste() -> Bool {
+        guard let pasted = Self.pasteboardString, !pasted.isEmpty else { return false }
+        let normalized = Self.normalizedVIN(pasted)
+        guard !normalized.isEmpty else { return false }
+        text.wrappedValue = normalized
+        updateValidationState()
+        requestFocus()
+        feedback()
+        return true
+    }
+
+    private static var pasteboardString: String? {
+#if canImport(UIKit)
+        UIPasteboard.general.string
+#elseif canImport(AppKit)
+        NSPasteboard.general.string(forType: .string)
+#else
+        nil
+#endif
+    }
+
     private func normalizeBoundText() {
         let normalized = Self.normalizedVIN(text.wrappedValue)
         if text.wrappedValue != normalized {
@@ -547,6 +743,37 @@ public struct VINKeyboardInput: View {
 
     private func updateValidationState() {
         validationState = validateVIN(text.wrappedValue)
+    }
+
+    /// The VIN prefix that determines the vehicle, or `nil` when enrichment is off or too
+    /// few characters are present. Make, model descriptor and model year occupy positions
+    /// 1–10; positions 11–17 are the plant and serial number and never change the decode.
+    /// Keying off only the first ten characters means deleting the serial number leaves the
+    /// key — and the displayed vehicle — untouched, so we never re-query the backend for an
+    /// answer we already have. Editing within 1–10 does change the key, which is correct:
+    /// the vehicle identity genuinely changed. Driving `.task(id:)` with this also cancels
+    /// stale lookups and debounces edits for free.
+    private var decodeKey: String? {
+        guard vehicleDecoder != nil else { return nil }
+        let vin = text.wrappedValue
+        return vin.count >= 10 ? String(vin.prefix(10)) : nil
+    }
+
+    private func decodeVehicleDetails() async {
+        guard let vin = decodeKey, let vehicleDecoder else {
+            // Below the decode threshold (or disabled): drop back to the offline identity.
+            vehicleDetails = nil
+            return
+        }
+        // Keep any previous details on screen while re-decoding so editing the decode-
+        // relevant part shows a spinner over the old value instead of flickering to empty.
+        try? await Task.sleep(nanoseconds: 600_000_000)
+        guard !Task.isCancelled else { return }
+        isDecodingVehicle = true
+        defer { isDecodingVehicle = false }
+        let details = try? await vehicleDecoder(vin)
+        guard !Task.isCancelled else { return }
+        vehicleDetails = details
     }
 
     private func requestFocus() {
@@ -716,7 +943,8 @@ private extension View {
         externalFocus: FocusState<Bool>.Binding?,
         handleKeyPress: @escaping (String) -> Bool,
         handleDelete: @escaping () -> Void,
-        handleSubmit: @escaping () -> Void
+        handleSubmit: @escaping () -> Void,
+        handlePaste: @escaping () -> Bool
     ) -> some View {
         if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *) {
             if let externalFocus {
@@ -726,7 +954,8 @@ private extension View {
                     .vinKeyPressHandler(
                         handleKeyPress: handleKeyPress,
                         handleDelete: handleDelete,
-                        handleSubmit: handleSubmit
+                        handleSubmit: handleSubmit,
+                        handlePaste: handlePaste
                     )
             } else {
                 self
@@ -735,7 +964,8 @@ private extension View {
                     .vinKeyPressHandler(
                         handleKeyPress: handleKeyPress,
                         handleDelete: handleDelete,
-                        handleSubmit: handleSubmit
+                        handleSubmit: handleSubmit,
+                        handlePaste: handlePaste
                     )
             }
         } else {
@@ -747,9 +977,18 @@ private extension View {
     func vinKeyPressHandler(
         handleKeyPress: @escaping (String) -> Bool,
         handleDelete: @escaping () -> Void,
-        handleSubmit: @escaping () -> Void
+        handleSubmit: @escaping () -> Void,
+        handlePaste: @escaping () -> Bool
     ) -> some View {
         onKeyPress(phases: .down) { press in
+            // Command/Control shortcuts (notably ⌘V / Ctrl+V) arrive here as the bare
+            // character; intercept paste so it is not mistaken for a VIN keystroke.
+            if press.modifiers.contains(.command) || press.modifiers.contains(.control) {
+                if press.key.character == "v" {
+                    return handlePaste() ? .handled : .ignored
+                }
+                return .ignored
+            }
             if press.key == .delete {
                 handleDelete()
                 return .handled

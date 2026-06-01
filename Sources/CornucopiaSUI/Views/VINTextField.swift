@@ -129,6 +129,16 @@ public struct VINComponents: Equatable {
     }
 }
 
+// MARK: - Model Year
+
+extension VINTextField {
+    /// Model year for the position-10 character per the North American standard
+    /// (the 30-year cycle is resolved to its most recent occurrence).
+    public static func modelYear(forPosition10 character: Character) -> String? {
+        modelYearCodes[character]
+    }
+}
+
 // MARK: - SwiftUI View
 
 public struct VINTextField: View {
@@ -316,7 +326,7 @@ public struct VINTextField: View {
             .animation(.easeInOut(duration: 0.15), value: validationState.inputType)
             
             // VIN breakdown with spacing
-            if case .valid(let vin, let components) = validationState {
+            if case .valid(_, let components) = validationState {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("VIN Breakdown")
                         .font(.caption.weight(.medium))
@@ -339,7 +349,7 @@ public struct VINTextField: View {
                         }
                     }
                 }
-            } else if case .validWithCheckDigitWarning(let vin, let components, let expectedCheckDigit) = validationState {
+            } else if case .validWithCheckDigitWarning(_, let components, let expectedCheckDigit) = validationState {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("VIN Breakdown")
                         .font(.caption.weight(.medium))

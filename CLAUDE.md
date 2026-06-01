@@ -105,3 +105,30 @@ Build one of these controls when at least two of these are true:
 - Validity directly controls actions such as Send, Connect, or Save.
 
 Keep these widgets reusable by treating them as small domain controls: bind a normalized value, expose clear validation and submit rules, keep app-specific business logic out of the component, and provide helper parsers/formatters when they are part of the public contract.
+
+### VIN online decoding (NHTSA vPIC)
+
+`VINKeyboardInput` optionally enriches the entry with make/model/year/type via the free NHTSA vPIC service (`VINVehicleDecoder.nhtsa`, opt-in through the `vehicleDecoder:` parameter). Behaviour:
+
+- The decoder is **always queried** — NHTSA frequently resolves make/year (and sometimes model) even for non-US VINs, so there is no US-only gating.
+- Decoding starts at **10 characters** (VIN positions 1–10 carry make/descriptor/model-year; only the serial number follows). `.task(id:)` debounces edits and cancels stale lookups.
+- **Model year is shown offline immediately** from position 10 via `VINTextField.modelYear(forPosition10:)`, then overwritten by the online value when present. Make falls back to the offline WMI manufacturer; model and vehicle type are online-only.
+- The vehicle widget shares the analysis column with the offline country/manufacturer preview: identity while typing, vehicle once ≥10 characters are present.
+
+#### Verified test VINs (NHTSA returns data)
+
+Serial sections are partly synthetic (so the check digit may mismatch, `ErrCode 1`), but WMI/VDS/position-10 are real, so NHTSA decodes them reliably.
+
+| VIN | Decodes to | Notes |
+|---|---|---|
+| `1HGCM82633A004352` | 2003 Honda Accord · Passenger Car · Coupe | only one with `ErrCode 0` |
+| `5YJ3E1EA7JF005252` | 2018 Tesla Model 3 · Passenger Car · Sedan | |
+| `1FTFW1ET5DFC10312` | 2013 Ford F-150 · Truck · Pickup | non-"Passenger Car" type |
+| `5UXWX9C50H0T15998` | 2017 BMW X3 · MPV · SUV | non-"Passenger Car" type |
+| `WP0AB29948S730159` | 2008 Porsche 911 · Passenger Car · Coupe | |
+| `1G1YY26U965105430` | 2006 Chevrolet Corvette · Passenger Car · Coupe | |
+| `WBA3A5C50CF256736` | 2012 BMW 328i · Passenger Car · Sedan | German WMI, full hit (proves non-US decoding) |
+| `WVWZZZ1KZ9W000001` | 2009 Volkswagen | make + year only, no model (offline fills the rest) |
+| `WAUZZZ8K9BA021189` | Audi · Passenger Car | make/type only |
+
+Test the 10-character partial path by typing only through position 10 (e.g. `1FTFW1ET5D`) — decoding should fire before the remaining characters are entered.

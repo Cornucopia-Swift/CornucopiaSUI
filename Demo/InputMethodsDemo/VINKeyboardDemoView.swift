@@ -11,6 +11,7 @@ struct VINKeyboardDemoView: View {
     @State private var vin = ProcessInfo.processInfo.environment["DEMO_VIN"] ?? ""
     @State private var validationState: VINTextField.ValidationState = .empty
     @State private var layout: VINKeyboardInput.KeyboardLayout = .qwertz
+    @State private var decodeVehicleDetails = true
     @State private var submitted: [String] = []
 
     var body: some View {
@@ -23,7 +24,8 @@ struct VINKeyboardDemoView: View {
                     validationState: $validationState,
                     keyboardLayout: layout,
                     placeholder: "Enter VIN",
-                    autoFocus: true
+                    autoFocus: true,
+                    vehicleDecoder: decodeVehicleDetails ? .nhtsa : nil
                 ) {
                     submit()
                 }
@@ -35,6 +37,7 @@ struct VINKeyboardDemoView: View {
                     Picker("Layout", selection: $layout) {
                         Text("QWERTZ").tag(VINKeyboardInput.KeyboardLayout.qwertz)
                         Text("QWERTY").tag(VINKeyboardInput.KeyboardLayout.qwerty)
+                        Text("AZERTY").tag(VINKeyboardInput.KeyboardLayout.azerty)
                     }
                     .pickerStyle(.segmented)
                 }
@@ -47,9 +50,17 @@ struct VINKeyboardDemoView: View {
             Section("Presets") {
                 HStack {
                     presetButton("Empty", "")
-                    presetButton("Check digit", "WVWZZZ1K")
-                    presetButton("Full", "1HGCM82633A123456")
+                    presetButton("US Honda", "1HGCM82633A123456")
+                    presetButton("US Tesla", "5YJ3E1EA7JF000316")
                 }
+                HStack {
+                    presetButton("US Ford", "1FTFW1ET5DFC10312")
+                    presetButton("German VW", "WVWZZZ1KZ9W000001")
+                }
+            }
+
+            Section("Options") {
+                Toggle("Decode vehicle details (NHTSA)", isOn: $decodeVehicleDetails)
             }
 
             Section("Live State") {
