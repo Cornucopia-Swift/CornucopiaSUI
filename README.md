@@ -57,6 +57,10 @@ Or add it through Xcode:
 - **`SynchronizedBlendingContainer`** - Generic container with synchronized blending
 - **`NetworkAwareTextField`** - Text fields with network input validation (hostname, IPv4, IPv6, MAC)
 - **`VINTextField`** - Vehicle Identification Number input with validation and formatting
+- **`HexKeyboardInput`** - Domain-specific keypad for hex payloads (grouped bytes, odd-nibble handling, clear/delete/send actions)
+- **`VINKeyboardInput`** - VIN keypad with per-section grouping, check-digit emphasis, and optional online vehicle decoding (NHTSA vPIC)
+- **`IPv4KeyboardInput`** - Octet-by-octet IPv4 keypad with auto-advance, 0–255 enforcement, and a pulsing insertion cursor
+- **`MACKeyboardInput`** - MAC address keypad with selectable separator style (colon/dash/dot/compact) and per-byte slots
 - **`SingleAxisGeometryReader`** - Geometry reading for single axis
 - **`ImagePickerView`** - UIKit image picker integration (iOS)
 

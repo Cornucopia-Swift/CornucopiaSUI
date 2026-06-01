@@ -7,6 +7,8 @@ import SwiftUI
 #if canImport(UIKit)
 import AudioToolbox
 import UIKit
+#elseif canImport(AppKit)
+import AppKit
 #endif
 
 /// A reusable SwiftUI input control for entering hexadecimal payloads.
@@ -106,7 +108,8 @@ public struct HexKeyboardInput: View {
             isFocused: $isInputFocused,
             handleKeyPress: handleKeyPress,
             handleDelete: deleteLastNibble,
-            handleSubmit: submit
+            handleSubmit: submit,
+            handlePaste: paste
         )
     }
 
@@ -353,6 +356,17 @@ public struct HexKeyboardInput: View {
             }
         }
         return characters.contains(where: \.isHexDigit)
+    }
+
+    /// Replaces the value with the normalized clipboard contents (overwrites rather than appends).
+    private func paste() -> Bool {
+        guard let pasted = hexPasteboardString else { return false }
+        let normalized = Self.normalizedHex(pasted)
+        guard !normalized.isEmpty else { return false }
+        text = normalized
+        isInputFocused = true
+        performFeedback()
+        return true
     }
 
     private func normalizeBoundText() {
@@ -610,13 +624,23 @@ private extension View {
         isFocused: FocusState<Bool>.Binding,
         handleKeyPress: @escaping (String) -> Bool,
         handleDelete: @escaping () -> Void,
-        handleSubmit: @escaping () -> Void
+        handleSubmit: @escaping () -> Void,
+        handlePaste: @escaping () -> Bool
     ) -> some View {
         if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *) {
             self
                 .focusable()
                 .focused(isFocused)
                 .onKeyPress(phases: .down) { press in
+                    // Command/Control shortcuts arrive here as the bare character. Hex letters
+                    // overlap with shortcut letters (⌘C, ⌘A, …), so intercept the whole combo:
+                    // handle ⌘V / Ctrl+V as paste and swallow the rest instead of inserting it.
+                    if press.modifiers.contains(.command) || press.modifiers.contains(.control) {
+                        if press.key.character == "v" {
+                            return handlePaste() ? .handled : .ignored
+                        }
+                        return .ignored
+                    }
                     if press.key == .delete {
                         handleDelete()
                         return .handled
@@ -631,6 +655,17 @@ private extension View {
             self
         }
     }
+}
+
+/// Reads the current pasteboard string across platforms.
+private var hexPasteboardString: String? {
+#if canImport(UIKit)
+    UIPasteboard.general.string
+#elseif canImport(AppKit)
+    NSPasteboard.general.string(forType: .string)
+#else
+    nil
+#endif
 }
 
 private struct HexKeyboardInputPreview: View {

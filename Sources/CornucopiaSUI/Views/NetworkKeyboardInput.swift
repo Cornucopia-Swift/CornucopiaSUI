@@ -6,6 +6,8 @@
 import SwiftUI
 #if canImport(UIKit)
 import UIKit
+#elseif canImport(AppKit)
+import AppKit
 #endif
 
 /// A domain-specific IPv4 input with octet slots and a numeric keypad.
@@ -70,7 +72,8 @@ public struct IPv4KeyboardInput: View {
             externalFocus: focusedBinding,
             handleKeyPress: handleKeyPress,
             handleDelete: deleteLastCharacter,
-            handleSubmit: submit
+            handleSubmit: submit,
+            handlePaste: paste
         )
     }
 
@@ -195,7 +198,7 @@ public struct IPv4KeyboardInput: View {
                 actionKey("arrow.right.to.line", role: canAdvanceOctet ? .separator : .action, accessibilityLabel: "Next octet") {
                     advanceOctet()
                 }
-                networkKey("0", role: .digit)
+                networkKey("0", role: .zero)
                 deleteKey
                 submitKey
             }
@@ -363,6 +366,18 @@ public struct IPv4KeyboardInput: View {
         return handled
     }
 
+    /// Replaces the value with the normalized clipboard contents (overwrites rather than appends).
+    private func paste() -> Bool {
+        guard let pasted = networkPasteboardString else { return false }
+        let normalized = Self.normalizedIPv4Draft(pasted)
+        guard !normalized.isEmpty else { return false }
+        text = normalized
+        updateValidationState()
+        requestFocus()
+        feedback()
+        return true
+    }
+
     private func normalizeBoundText() {
         let normalized = Self.normalizedIPv4Draft(text)
         if text != normalized {
@@ -480,7 +495,8 @@ public struct MACKeyboardInput: View {
             externalFocus: focusedBinding,
             handleKeyPress: handleKeyPress,
             handleDelete: deleteLastNibble,
-            handleSubmit: submit
+            handleSubmit: submit,
+            handlePaste: paste
         )
     }
 
@@ -592,7 +608,7 @@ public struct MACKeyboardInput: View {
                 macKey("7", role: .digit)
                 macKey("8", role: .digit)
                 macKey("9", role: .digit)
-                macKey("0", role: .digit)
+                macKey("0", role: .zero)
                 deleteKey
                 submitKey
             }
@@ -710,6 +726,17 @@ public struct MACKeyboardInput: View {
         return handled
     }
 
+    /// Replaces the value with the normalized clipboard contents (overwrites rather than appends).
+    private func paste() -> Bool {
+        guard let pasted = networkPasteboardString else { return false }
+        guard !Self.normalizedMACHex(pasted).isEmpty else { return false }
+        text = Self.formattedMAC(pasted, separatorStyle: separatorStyle)
+        updateValidationState()
+        requestFocus()
+        feedback()
+        return true
+    }
+
     private func normalizeBoundText() {
         let formatted = Self.formattedMAC(rawHex, separatorStyle: separatorStyle)
         if text != formatted {
@@ -787,6 +814,7 @@ private struct NetworkSlotCursor: View {
 
 private enum NetworkKeyboardKeyRole {
     case digit
+    case zero
     case hexLetter
     case separator
     case action
@@ -796,6 +824,8 @@ private enum NetworkKeyboardKeyRole {
         switch self {
             case .digit:
                 Color.primary
+            case .zero:
+                Color.white
             case .hexLetter:
                 colorScheme == .dark ? Color(red: 0.78, green: 1, blue: 0.86) : Color.green
             case .separator:
@@ -811,6 +841,8 @@ private enum NetworkKeyboardKeyRole {
         switch self {
             case .digit:
                 Color.primary.opacity(0.08)
+            case .zero:
+                Color.accentColor
             case .hexLetter:
                 colorScheme == .dark ? Color.green.opacity(0.2) : Color.green.opacity(0.14)
             case .separator:
@@ -826,6 +858,8 @@ private enum NetworkKeyboardKeyRole {
         switch self {
             case .digit:
                 Color.primary.opacity(0.22)
+            case .zero:
+                Color.accentColor.opacity(0.78)
             case .hexLetter:
                 colorScheme == .dark ? Color.green.opacity(0.32) : Color.green.opacity(0.26)
             case .separator:
@@ -841,6 +875,8 @@ private enum NetworkKeyboardKeyRole {
         switch self {
             case .digit:
                 Color.primary.opacity(0.06)
+            case .zero:
+                Color.accentColor.opacity(0.85)
             case .hexLetter:
                 Color.green.opacity(colorScheme == .dark ? 0.6 : 0.25)
             case .separator:
@@ -917,7 +953,8 @@ private extension View {
         externalFocus: FocusState<Bool>.Binding?,
         handleKeyPress: @escaping (String) -> Bool,
         handleDelete: @escaping () -> Void,
-        handleSubmit: @escaping () -> Void
+        handleSubmit: @escaping () -> Void,
+        handlePaste: @escaping () -> Bool
     ) -> some View {
         if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *) {
             if let externalFocus {
@@ -927,7 +964,8 @@ private extension View {
                     .networkKeyPressHandler(
                         handleKeyPress: handleKeyPress,
                         handleDelete: handleDelete,
-                        handleSubmit: handleSubmit
+                        handleSubmit: handleSubmit,
+                        handlePaste: handlePaste
                     )
             } else {
                 self
@@ -936,7 +974,8 @@ private extension View {
                     .networkKeyPressHandler(
                         handleKeyPress: handleKeyPress,
                         handleDelete: handleDelete,
-                        handleSubmit: handleSubmit
+                        handleSubmit: handleSubmit,
+                        handlePaste: handlePaste
                     )
             }
         } else {
@@ -948,9 +987,18 @@ private extension View {
     func networkKeyPressHandler(
         handleKeyPress: @escaping (String) -> Bool,
         handleDelete: @escaping () -> Void,
-        handleSubmit: @escaping () -> Void
+        handleSubmit: @escaping () -> Void,
+        handlePaste: @escaping () -> Bool
     ) -> some View {
         onKeyPress(phases: .down) { press in
+            // Command/Control shortcuts (notably ⌘V / Ctrl+V) arrive here as the bare
+            // character; intercept paste so it is not mistaken for a digit keystroke.
+            if press.modifiers.contains(.command) || press.modifiers.contains(.control) {
+                if press.key.character == "v" {
+                    return handlePaste() ? .handled : .ignored
+                }
+                return .ignored
+            }
             if press.key == .delete {
                 handleDelete()
                 return .handled
@@ -962,6 +1010,17 @@ private extension View {
             return handleKeyPress(press.characters) ? .handled : .ignored
         }
     }
+}
+
+/// Reads the current pasteboard string across platforms.
+private var networkPasteboardString: String? {
+#if canImport(UIKit)
+    UIPasteboard.general.string
+#elseif canImport(AppKit)
+    NSPasteboard.general.string(forType: .string)
+#else
+    nil
+#endif
 }
 
 private extension String {

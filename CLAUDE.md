@@ -106,6 +106,16 @@ Build one of these controls when at least two of these are true:
 
 Keep these widgets reusable by treating them as small domain controls: bind a normalized value, expose clear validation and submit rules, keep app-specific business logic out of the component, and provide helper parsers/formatters when they are part of the public contract.
 
+### Shared keypad conventions (Hex / VIN / IPv4 / MAC)
+
+The four keypad widgets (`HexKeyboardInput`, `VINKeyboardInput`, `IPv4KeyboardInput`, `MACKeyboardInput`) share a set of interaction conventions. Keep these consistent when adding a new one:
+
+- **Slot display + cursor.** The value is shown as grouped, color-coded slots with a section label (e.g. `OCT 1`, `B1`, WMI/VDS/VIS). The active slot shows a single text-style cursor (`|`) that pulses slowly (`.easeInOut(duration: 0.8).repeatForever(autoreverses: true)`, driven by an `isActiveSlotPulsing` flag set in `.task`). Inactive slots keep the glyph at zero opacity so it still anchors the baseline the separators align to — do not render multiple visible cursors. Separators (`.`/`:`/`-`) are baseline-aligned to the value digits, not center-aligned to the two-line cell.
+- **Auto-advance & input gating.** Advance to the next slot automatically once a slot is full (IPv4: after the third digit). Gate impossible input at the key level by disabling the key (`.disabled(...)`) rather than accepting then rejecting — e.g. IPv4 greys out digits that would push an octet past 255, MAC caps at 12 nibbles, VIN disables non-`X` letters at the check-digit position.
+- **Zero-key emphasis.** The `0` key gets a filled accent-color background with a white glyph (the `.zero` role), matching `HexKeyboardInput`, because it is the most-used key on numeric keypads.
+- **Paste (`⌘V` / `Ctrl+V`).** These are custom focusable views using `onKeyPress`, not `UITextField`, so paste must be intercepted manually. The key handler checks `press.modifiers` for `.command`/`.control` **first**: `v` triggers a `paste()` that reads `UIPasteboard`/`NSPasteboard`, runs the clipboard through the widget's own normalizer, and **overwrites** the value; every other shortcut combo is swallowed (returned `.ignored`). This guard is mandatory for the hex keypad in particular, because hex letters (`A`–`F`) overlap with shortcut letters — without it, `⌘C`/`⌘A`/… would insert characters instead of acting as shortcuts.
+- **Normalized binding.** The bound `text` is always kept in normalized form via `normalizeBoundText()` on `.onChange`, and each widget exposes a `static` normalizer/formatter (`normalizedIPv4Draft`, `normalizedMACHex`/`formattedMAC`, `normalizedHex`, `normalizedVIN`) as part of its public contract.
+
 ### VIN online decoding (NHTSA vPIC)
 
 `VINKeyboardInput` optionally enriches the entry with make/model/year/type via the free NHTSA vPIC service (`VINVehicleDecoder.nhtsa`, opt-in through the `vehicleDecoder:` parameter). Behaviour:
