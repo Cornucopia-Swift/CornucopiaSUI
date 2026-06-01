@@ -6,8 +6,6 @@
 import SwiftUI
 #if canImport(UIKit)
 import UIKit
-#elseif canImport(AppKit)
-import AppKit
 #endif
 
 /// A domain-specific IPv4 input with octet slots and a numeric keypad.
@@ -67,7 +65,7 @@ public struct IPv4KeyboardInput: View {
         .onChange(of: text) { _ in
             normalizeBoundText()
         }
-        .networkKeyboardInput(
+        .CC_keypadHardwareInput(
             internalFocus: $isInputFocused,
             externalFocus: focusedBinding,
             handleKeyPress: handleKeyPress,
@@ -117,7 +115,7 @@ public struct IPv4KeyboardInput: View {
                     .frame(width: 44, height: 40)
                     .contentShape(Rectangle())
             }
-            .buttonStyle(NetworkInlineButtonStyle(isEnabled: !text.isEmpty))
+            .buttonStyle(KeypadInlineButtonStyle(isEnabled: !text.isEmpty))
             .disabled(text.isEmpty)
             .accessibilityLabel("Clear IPv4 address")
         }
@@ -138,7 +136,7 @@ public struct IPv4KeyboardInput: View {
                     Text(value)
                         .foregroundStyle(octetTextColor(value))
                 }
-                NetworkSlotCursor(color: octetColor(at: index), isActive: isActive, isPulsing: isActiveSlotPulsing)
+                KeypadSlotCursor(color: octetColor(at: index), isActive: isActive, isPulsing: isActiveSlotPulsing)
                 Spacer(minLength: 0)
             }
             .font(.system(.body, design: .monospaced).weight(.medium))
@@ -214,16 +212,15 @@ public struct IPv4KeyboardInput: View {
     }
 
     private func networkKey(_ key: String, role: NetworkKeyboardKeyRole) -> some View {
-        Button {
-            appendDigit(key)
-        } label: {
-            Text(key)
-                .font(.title3.monospaced().weight(.semibold))
-                .frame(maxWidth: .infinity, minHeight: 42)
-        }
-        .buttonStyle(NetworkKeyboardKeyStyle(role: role))
-        .disabled(!canAppendDigit(key))
-        .accessibilityLabel("IPv4 \(key)")
+        KeypadKey(
+            title: key,
+            role: role,
+            isEnabled: canAppendDigit(key),
+            alternates: Self.maskAlternates[key] ?? [],
+            accessibilityLabel: "IPv4 \(key)",
+            onTap: { appendDigit(key) },
+            onSelectAlternate: { selectOctet($0) }
+        )
     }
 
     private func actionKey(_ systemImage: String, role: NetworkKeyboardKeyRole, accessibilityLabel: String, action: @escaping () -> Void) -> some View {
@@ -232,7 +229,7 @@ public struct IPv4KeyboardInput: View {
                 .font(.title3.weight(.semibold))
                 .frame(maxWidth: .infinity, minHeight: 42)
         }
-        .buttonStyle(NetworkKeyboardKeyStyle(role: role))
+        .buttonStyle(KeypadKeyStyle(role: role))
         .disabled(role == .action || !canAdvanceOctet)
         .accessibilityLabel(accessibilityLabel)
     }
@@ -245,7 +242,7 @@ public struct IPv4KeyboardInput: View {
                 .font(.title3.weight(.semibold))
                 .frame(maxWidth: .infinity, minHeight: 42)
         }
-        .buttonStyle(NetworkKeyboardKeyStyle(role: .action))
+        .buttonStyle(KeypadKeyStyle(role: NetworkKeyboardKeyRole.action))
         .disabled(text.isEmpty)
         .accessibilityLabel("Delete")
     }
@@ -258,7 +255,7 @@ public struct IPv4KeyboardInput: View {
                 .font(.title3.weight(.semibold))
                 .frame(maxWidth: .infinity, minHeight: 42)
         }
-        .buttonStyle(NetworkKeyboardKeyStyle(role: canSubmit ? .submit : .action))
+        .buttonStyle(KeypadKeyStyle(role: canSubmit ? NetworkKeyboardKeyRole.submit : .action))
         .disabled(!canSubmit)
         .accessibilityLabel("Submit IPv4 address")
     }
@@ -302,6 +299,13 @@ public struct IPv4KeyboardInput: View {
         return true
     }
 
+    /// Subnet-mask octets offered on long-press, grouped by their leading digit so each
+    /// alternate stays consistent with the key that's held (e.g. hold `2` → 224…255).
+    static let maskAlternates: [String: [String]] = [
+        "1": ["128", "192"],
+        "2": ["224", "240", "248", "252", "254", "255"]
+    ]
+
     private func appendDigit(_ digit: String) {
         guard canAppendDigit(digit) else { return }
         let index = activeOctetIndex
@@ -312,6 +316,24 @@ public struct IPv4KeyboardInput: View {
         currentParts[index].append(digit)
         var newText = currentParts.prefix(4).joined(separator: ".")
         if index < 3, currentParts[index].count == 3 {
+            newText.append(".")
+        }
+        text = newText
+        updateValidationState()
+        requestFocus()
+        feedback()
+    }
+
+    /// Replaces the active octet with a long-press preset (a mask octet) and advances.
+    private func selectOctet(_ value: String) {
+        let index = activeOctetIndex
+        var currentParts = parts
+        while currentParts.count <= index {
+            currentParts.append("")
+        }
+        currentParts[index] = value
+        var newText = currentParts.prefix(4).joined(separator: ".")
+        if index < 3 {
             newText.append(".")
         }
         text = newText
@@ -368,7 +390,7 @@ public struct IPv4KeyboardInput: View {
 
     /// Replaces the value with the normalized clipboard contents (overwrites rather than appends).
     private func paste() -> Bool {
-        guard let pasted = networkPasteboardString else { return false }
+        guard let pasted = keypadPasteboardString else { return false }
         let normalized = Self.normalizedIPv4Draft(pasted)
         guard !normalized.isEmpty else { return false }
         text = normalized
@@ -490,7 +512,7 @@ public struct MACKeyboardInput: View {
         .onChange(of: text) { _ in
             normalizeBoundText()
         }
-        .networkKeyboardInput(
+        .CC_keypadHardwareInput(
             internalFocus: $isInputFocused,
             externalFocus: focusedBinding,
             handleKeyPress: handleKeyPress,
@@ -541,7 +563,7 @@ public struct MACKeyboardInput: View {
                     .frame(width: 44, height: 40)
                     .contentShape(Rectangle())
             }
-            .buttonStyle(NetworkInlineButtonStyle(isEnabled: !rawHex.isEmpty))
+            .buttonStyle(KeypadInlineButtonStyle(isEnabled: !rawHex.isEmpty))
             .disabled(rawHex.isEmpty)
             .accessibilityLabel("Clear MAC address")
         }
@@ -561,7 +583,7 @@ public struct MACKeyboardInput: View {
                     Text(value)
                         .foregroundStyle(.primary)
                 }
-                NetworkSlotCursor(color: byteColor(at: index), isActive: isActive, isPulsing: isActiveSlotPulsing)
+                KeypadSlotCursor(color: byteColor(at: index), isActive: isActive, isPulsing: isActiveSlotPulsing)
                 Spacer(minLength: 0)
             }
             .font(.system(.body, design: .monospaced).weight(.medium))
@@ -624,16 +646,9 @@ public struct MACKeyboardInput: View {
     }
 
     private func macKey(_ key: String, role: NetworkKeyboardKeyRole) -> some View {
-        Button {
+        KeypadKey(title: key, role: role, isEnabled: rawHex.count < 12, accessibilityLabel: "MAC \(key)") {
             appendNibble(key)
-        } label: {
-            Text(key)
-                .font(.title3.monospaced().weight(.semibold))
-                .frame(maxWidth: .infinity, minHeight: 42)
         }
-        .buttonStyle(NetworkKeyboardKeyStyle(role: role))
-        .disabled(rawHex.count >= 12)
-        .accessibilityLabel("MAC \(key)")
     }
 
     private var deleteKey: some View {
@@ -644,7 +659,7 @@ public struct MACKeyboardInput: View {
                 .font(.title3.weight(.semibold))
                 .frame(maxWidth: .infinity, minHeight: 42)
         }
-        .buttonStyle(NetworkKeyboardKeyStyle(role: .action))
+        .buttonStyle(KeypadKeyStyle(role: NetworkKeyboardKeyRole.action))
         .disabled(rawHex.isEmpty)
         .accessibilityLabel("Delete")
     }
@@ -657,7 +672,7 @@ public struct MACKeyboardInput: View {
                 .font(.title3.weight(.semibold))
                 .frame(maxWidth: .infinity, minHeight: 42)
         }
-        .buttonStyle(NetworkKeyboardKeyStyle(role: canSubmit ? .submit : .action))
+        .buttonStyle(KeypadKeyStyle(role: canSubmit ? NetworkKeyboardKeyRole.submit : .action))
         .disabled(!canSubmit)
         .accessibilityLabel("Submit MAC address")
     }
@@ -728,7 +743,7 @@ public struct MACKeyboardInput: View {
 
     /// Replaces the value with the normalized clipboard contents (overwrites rather than appends).
     private func paste() -> Bool {
-        guard let pasted = networkPasteboardString else { return false }
+        guard let pasted = keypadPasteboardString else { return false }
         guard !Self.normalizedMACHex(pasted).isEmpty else { return false }
         text = Self.formattedMAC(pasted, separatorStyle: separatorStyle)
         updateValidationState()
@@ -790,25 +805,6 @@ private extension MACKeyboardInput.SeparatorStyle {
             case .dot: "Cisco"
             case .compact: "Compact"
         }
-    }
-}
-
-/// A text-style insertion cursor for the network slot displays.
-///
-/// Only the active slot shows the cursor, pulsing slowly (mirroring
-/// `VINKeyboardInput`). Inactive slots keep the glyph at zero opacity so it still
-/// anchors the baseline the separators align to, without rendering a visible cursor.
-private struct NetworkSlotCursor: View {
-
-    let color: Color
-    let isActive: Bool
-    let isPulsing: Bool
-
-    var body: some View {
-        Text(verbatim: "|")
-            .foregroundStyle(color)
-            .opacity(isActive ? (isPulsing ? 0.95 : 0.25) : 0)
-            .animation(isActive ? .easeInOut(duration: 0.8).repeatForever(autoreverses: true) : .default, value: isPulsing)
     }
 }
 
@@ -889,138 +885,15 @@ private enum NetworkKeyboardKeyRole {
     }
 }
 
-private struct NetworkKeyboardKeyStyle: ButtonStyle {
-
-    @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.isEnabled) private var isEnabled
-
-    let role: NetworkKeyboardKeyRole
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .foregroundStyle(isEnabled ? role.foreground(for: colorScheme) : Color.secondary.opacity(0.45))
-            .background {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(isEnabled ? keyBackground(isPressed: configuration.isPressed) : Color.secondary.opacity(0.12))
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .strokeBorder(isEnabled ? keyBorder(isPressed: configuration.isPressed) : Color.clear, lineWidth: 1)
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .scaleEffect(configuration.isPressed ? 0.98 : 1)
-            .animation(.easeOut(duration: 0.06), value: configuration.isPressed)
+extension NetworkKeyboardKeyRole: KeypadKeyRole {
+    func colors(for colorScheme: ColorScheme) -> KeypadKeyColors {
+        KeypadKeyColors(
+            foreground: foreground(for: colorScheme),
+            background: background(for: colorScheme),
+            pressedBackground: pressedBackground(for: colorScheme),
+            border: border(for: colorScheme)
+        )
     }
-
-    private func keyBackground(isPressed: Bool) -> Color {
-        isPressed ? role.pressedBackground(for: colorScheme) : role.background(for: colorScheme)
-    }
-
-    private func keyBorder(isPressed: Bool) -> Color {
-        isPressed ? Color.accentColor.opacity(0.65) : role.border(for: colorScheme)
-    }
-}
-
-private struct NetworkInlineButtonStyle: ButtonStyle {
-
-    @Environment(\.colorScheme) private var colorScheme
-
-    let isEnabled: Bool
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .foregroundStyle(foreground)
-            .opacity(configuration.isPressed ? 0.68 : 1)
-            .scaleEffect(configuration.isPressed ? 0.94 : 1)
-            .animation(.easeOut(duration: 0.06), value: configuration.isPressed)
-    }
-
-    private var foreground: Color {
-        if colorScheme == .dark {
-            return isEnabled ? .primary : .secondary.opacity(0.38)
-        }
-
-        return isEnabled ? .accentColor : .secondary.opacity(0.55)
-    }
-}
-
-private extension View {
-
-    @ViewBuilder
-    func networkKeyboardInput(
-        internalFocus: FocusState<Bool>.Binding,
-        externalFocus: FocusState<Bool>.Binding?,
-        handleKeyPress: @escaping (String) -> Bool,
-        handleDelete: @escaping () -> Void,
-        handleSubmit: @escaping () -> Void,
-        handlePaste: @escaping () -> Bool
-    ) -> some View {
-        if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *) {
-            if let externalFocus {
-                self
-                    .focusable()
-                    .focused(externalFocus)
-                    .networkKeyPressHandler(
-                        handleKeyPress: handleKeyPress,
-                        handleDelete: handleDelete,
-                        handleSubmit: handleSubmit,
-                        handlePaste: handlePaste
-                    )
-            } else {
-                self
-                    .focusable()
-                    .focused(internalFocus)
-                    .networkKeyPressHandler(
-                        handleKeyPress: handleKeyPress,
-                        handleDelete: handleDelete,
-                        handleSubmit: handleSubmit,
-                        handlePaste: handlePaste
-                    )
-            }
-        } else {
-            self
-        }
-    }
-
-    @available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *)
-    func networkKeyPressHandler(
-        handleKeyPress: @escaping (String) -> Bool,
-        handleDelete: @escaping () -> Void,
-        handleSubmit: @escaping () -> Void,
-        handlePaste: @escaping () -> Bool
-    ) -> some View {
-        onKeyPress(phases: .down) { press in
-            // Command/Control shortcuts (notably ⌘V / Ctrl+V) arrive here as the bare
-            // character; intercept paste so it is not mistaken for a digit keystroke.
-            if press.modifiers.contains(.command) || press.modifiers.contains(.control) {
-                if press.key.character == "v" {
-                    return handlePaste() ? .handled : .ignored
-                }
-                return .ignored
-            }
-            if press.key == .delete {
-                handleDelete()
-                return .handled
-            }
-            if press.key == .return {
-                handleSubmit()
-                return .handled
-            }
-            return handleKeyPress(press.characters) ? .handled : .ignored
-        }
-    }
-}
-
-/// Reads the current pasteboard string across platforms.
-private var networkPasteboardString: String? {
-#if canImport(UIKit)
-    UIPasteboard.general.string
-#elseif canImport(AppKit)
-    NSPasteboard.general.string(forType: .string)
-#else
-    nil
-#endif
 }
 
 private extension String {

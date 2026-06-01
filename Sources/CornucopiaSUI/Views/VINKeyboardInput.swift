@@ -188,7 +188,7 @@ public struct VINKeyboardInput: View {
         .onChange(of: validationState) { newState in
             validationStateBinding?.wrappedValue = newState
         }
-        .vinHardwareKeyboardInput(
+        .CC_keypadHardwareInput(
             internalFocus: $isInputFocused,
             externalFocus: focusedBinding,
             handleKeyPress: handleKeyPress,
@@ -214,7 +214,7 @@ public struct VINKeyboardInput: View {
                     .frame(width: 44, height: 40)
                     .contentShape(Rectangle())
             }
-            .buttonStyle(VINInlineButtonStyle(isEnabled: !text.wrappedValue.isEmpty))
+            .buttonStyle(KeypadInlineButtonStyle(isEnabled: !text.wrappedValue.isEmpty))
             .disabled(text.wrappedValue.isEmpty)
             .accessibilityLabel("Clear VIN")
         }
@@ -576,16 +576,9 @@ public struct VINKeyboardInput: View {
     }
 
     private func vinKey(_ key: String) -> some View {
-        Button {
+        KeypadKey(title: key, role: keyRole(for: key), isEnabled: isKeyEnabled(key), accessibilityLabel: "VIN \(key)") {
             append(key)
-        } label: {
-            Text(key)
-                .font(.title3.monospaced().weight(.semibold))
-                .frame(maxWidth: .infinity, minHeight: 42)
         }
-        .buttonStyle(VINKeyboardKeyStyle(role: keyRole(for: key)))
-        .disabled(!isKeyEnabled(key))
-        .accessibilityLabel("VIN \(key)")
     }
 
     /// At each position only the characters valid there stay enabled. The check-digit
@@ -605,7 +598,7 @@ public struct VINKeyboardInput: View {
                 .font(.title3.weight(.semibold))
                 .frame(width: 58, height: 42)
         }
-        .buttonStyle(VINKeyboardKeyStyle(role: .action))
+        .buttonStyle(KeypadKeyStyle(role: VINKeyboardKeyRole.action))
         .disabled(text.wrappedValue.isEmpty)
         .accessibilityLabel("Delete")
     }
@@ -618,7 +611,7 @@ public struct VINKeyboardInput: View {
                 .font(.title3.weight(.semibold))
                 .frame(width: 58, height: 42)
         }
-        .buttonStyle(VINKeyboardKeyStyle(role: canSubmit ? .submit : .action))
+        .buttonStyle(KeypadKeyStyle(role: canSubmit ? VINKeyboardKeyRole.submit : .action))
         .disabled(!canSubmit)
         .accessibilityLabel("Submit VIN")
     }
@@ -713,7 +706,7 @@ public struct VINKeyboardInput: View {
     /// Replaces the value with the normalized clipboard contents. Pasting overwrites rather
     /// than appends, matching how a full VIN is usually transferred from another source.
     private func paste() -> Bool {
-        guard let pasted = Self.pasteboardString, !pasted.isEmpty else { return false }
+        guard let pasted = keypadPasteboardString, !pasted.isEmpty else { return false }
         let normalized = Self.normalizedVIN(pasted)
         guard !normalized.isEmpty else { return false }
         text.wrappedValue = normalized
@@ -721,16 +714,6 @@ public struct VINKeyboardInput: View {
         requestFocus()
         feedback()
         return true
-    }
-
-    private static var pasteboardString: String? {
-#if canImport(UIKit)
-        UIPasteboard.general.string
-#elseif canImport(AppKit)
-        NSPasteboard.general.string(forType: .string)
-#else
-        nil
-#endif
     }
 
     private func normalizeBoundText() {
@@ -879,126 +862,14 @@ private enum VINKeyboardKeyRole {
     }
 }
 
-private struct VINKeyboardKeyStyle: ButtonStyle {
-
-    @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.isEnabled) private var isEnabled
-
-    let role: VINKeyboardKeyRole
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .foregroundStyle(isEnabled ? role.foreground(for: colorScheme) : Color.secondary.opacity(0.45))
-            .background {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(isEnabled ? keyBackground(isPressed: configuration.isPressed) : Color.secondary.opacity(0.12))
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .strokeBorder(isEnabled ? keyBorder(isPressed: configuration.isPressed) : Color.clear, lineWidth: 1)
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .scaleEffect(configuration.isPressed ? 0.98 : 1)
-            .animation(.easeOut(duration: 0.06), value: configuration.isPressed)
-    }
-
-    private func keyBackground(isPressed: Bool) -> Color {
-        isPressed ? role.pressedBackground(for: colorScheme) : role.background(for: colorScheme)
-    }
-
-    private func keyBorder(isPressed: Bool) -> Color {
-        isPressed ? Color.accentColor.opacity(0.65) : role.border(for: colorScheme)
-    }
-}
-
-private struct VINInlineButtonStyle: ButtonStyle {
-
-    @Environment(\.colorScheme) private var colorScheme
-
-    let isEnabled: Bool
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .foregroundStyle(foreground)
-            .opacity(configuration.isPressed ? 0.68 : 1)
-            .scaleEffect(configuration.isPressed ? 0.94 : 1)
-            .animation(.easeOut(duration: 0.06), value: configuration.isPressed)
-    }
-
-    private var foreground: Color {
-        if colorScheme == .dark {
-            return isEnabled ? .primary : .secondary.opacity(0.38)
-        }
-
-        return isEnabled ? .accentColor : .secondary.opacity(0.55)
-    }
-}
-
-private extension View {
-
-    @ViewBuilder
-    func vinHardwareKeyboardInput(
-        internalFocus: FocusState<Bool>.Binding,
-        externalFocus: FocusState<Bool>.Binding?,
-        handleKeyPress: @escaping (String) -> Bool,
-        handleDelete: @escaping () -> Void,
-        handleSubmit: @escaping () -> Void,
-        handlePaste: @escaping () -> Bool
-    ) -> some View {
-        if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *) {
-            if let externalFocus {
-                self
-                    .focusable()
-                    .focused(externalFocus)
-                    .vinKeyPressHandler(
-                        handleKeyPress: handleKeyPress,
-                        handleDelete: handleDelete,
-                        handleSubmit: handleSubmit,
-                        handlePaste: handlePaste
-                    )
-            } else {
-                self
-                    .focusable()
-                    .focused(internalFocus)
-                    .vinKeyPressHandler(
-                        handleKeyPress: handleKeyPress,
-                        handleDelete: handleDelete,
-                        handleSubmit: handleSubmit,
-                        handlePaste: handlePaste
-                    )
-            }
-        } else {
-            self
-        }
-    }
-
-    @available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *)
-    func vinKeyPressHandler(
-        handleKeyPress: @escaping (String) -> Bool,
-        handleDelete: @escaping () -> Void,
-        handleSubmit: @escaping () -> Void,
-        handlePaste: @escaping () -> Bool
-    ) -> some View {
-        onKeyPress(phases: .down) { press in
-            // Command/Control shortcuts (notably ⌘V / Ctrl+V) arrive here as the bare
-            // character; intercept paste so it is not mistaken for a VIN keystroke.
-            if press.modifiers.contains(.command) || press.modifiers.contains(.control) {
-                if press.key.character == "v" {
-                    return handlePaste() ? .handled : .ignored
-                }
-                return .ignored
-            }
-            if press.key == .delete {
-                handleDelete()
-                return .handled
-            }
-            if press.key == .return {
-                handleSubmit()
-                return .handled
-            }
-            return handleKeyPress(press.characters) ? .handled : .ignored
-        }
+extension VINKeyboardKeyRole: KeypadKeyRole {
+    func colors(for colorScheme: ColorScheme) -> KeypadKeyColors {
+        KeypadKeyColors(
+            foreground: foreground(for: colorScheme),
+            background: background(for: colorScheme),
+            pressedBackground: pressedBackground(for: colorScheme),
+            border: border(for: colorScheme)
+        )
     }
 }
 

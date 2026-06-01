@@ -7,8 +7,6 @@ import SwiftUI
 #if canImport(UIKit)
 import AudioToolbox
 import UIKit
-#elseif canImport(AppKit)
-import AppKit
 #endif
 
 /// A reusable SwiftUI input control for entering hexadecimal payloads.
@@ -104,8 +102,8 @@ public struct HexKeyboardInput: View {
         .onChange(of: text) { _ in
             normalizeBoundText()
         }
-        .hardwareKeyboardInput(
-            isFocused: $isInputFocused,
+        .CC_keypadHardwareInput(
+            internalFocus: $isInputFocused,
             handleKeyPress: handleKeyPress,
             handleDelete: deleteLastNibble,
             handleSubmit: submit,
@@ -144,7 +142,7 @@ public struct HexKeyboardInput: View {
                     .frame(width: 44, height: 40)
                     .contentShape(Rectangle())
             }
-            .buttonStyle(HexKeyboardInlineButtonStyle(isEnabled: !text.isEmpty))
+            .buttonStyle(KeypadInlineButtonStyle(isEnabled: !text.isEmpty))
             .disabled(text.isEmpty)
             .accessibilityLabel("Clear hex payload")
         }
@@ -236,15 +234,9 @@ public struct HexKeyboardInput: View {
     }
 
     private func hexKey(_ key: String, role: HexKeyboardKeyRole = .digit) -> some View {
-        Button {
+        KeypadKey(title: key, role: role, accessibilityLabel: "Hex \(key)") {
             append(key)
-        } label: {
-            Text(key)
-                .font(.title3.monospaced().weight(.semibold))
-                .frame(maxWidth: .infinity, minHeight: 42)
         }
-        .buttonStyle(HexKeyboardKeyStyle(role: role))
-        .accessibilityLabel("Hex \(key)")
     }
 
     private var deleteKey: some View {
@@ -255,7 +247,7 @@ public struct HexKeyboardInput: View {
                 .font(.title3.weight(.semibold))
                 .frame(maxWidth: .infinity, minHeight: 42)
         }
-        .buttonStyle(HexKeyboardKeyStyle(role: .action))
+        .buttonStyle(KeypadKeyStyle(role: HexKeyboardKeyRole.action))
         .disabled(text.isEmpty)
         .accessibilityLabel("Delete")
     }
@@ -268,7 +260,7 @@ public struct HexKeyboardInput: View {
                 .font(.title3.weight(.semibold))
                 .frame(maxWidth: .infinity, minHeight: 42)
         }
-        .buttonStyle(HexKeyboardKeyStyle(role: canSubmit ? .submit : .action))
+        .buttonStyle(KeypadKeyStyle(role: canSubmit ? HexKeyboardKeyRole.submit : .action))
         .disabled(!canSubmit)
         .accessibilityLabel(returnKeyAccessibilityLabel)
     }
@@ -360,7 +352,7 @@ public struct HexKeyboardInput: View {
 
     /// Replaces the value with the normalized clipboard contents (overwrites rather than appends).
     private func paste() -> Bool {
-        guard let pasted = hexPasteboardString else { return false }
+        guard let pasted = keypadPasteboardString else { return false }
         let normalized = Self.normalizedHex(pasted)
         guard !normalized.isEmpty else { return false }
         text = normalized
@@ -532,58 +524,14 @@ private enum HexKeyboardKeyRole {
     }
 }
 
-private struct HexKeyboardKeyStyle: ButtonStyle {
-
-    @Environment(\.colorScheme) private var colorScheme
-
-    var role: HexKeyboardKeyRole = .digit
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .foregroundStyle(role.tint(for: colorScheme))
-            .background {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(keyBackground(isPressed: configuration.isPressed))
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .strokeBorder(keyBorder(isPressed: configuration.isPressed), lineWidth: 1)
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .scaleEffect(configuration.isPressed ? 0.98 : 1)
-            .animation(.easeOut(duration: 0.06), value: configuration.isPressed)
-    }
-
-    private func keyBackground(isPressed: Bool) -> Color {
-        isPressed ? role.pressedBackground(for: colorScheme) : role.background(for: colorScheme)
-    }
-
-    private func keyBorder(isPressed: Bool) -> Color {
-        isPressed ? Color.accentColor.opacity(0.65) : role.border(for: colorScheme)
-    }
-}
-
-private struct HexKeyboardInlineButtonStyle: ButtonStyle {
-
-    @Environment(\.colorScheme) private var colorScheme
-
-    let isEnabled: Bool
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .foregroundStyle(foreground)
-            .opacity(configuration.isPressed ? 0.68 : 1)
-            .scaleEffect(configuration.isPressed ? 0.94 : 1)
-            .animation(.easeOut(duration: 0.06), value: configuration.isPressed)
-    }
-
-    private var foreground: Color {
-        if colorScheme == .dark {
-            return isEnabled ? .primary : .secondary.opacity(0.38)
-        }
-
-        return isEnabled ? .accentColor : .secondary.opacity(0.55)
+extension HexKeyboardKeyRole: KeypadKeyRole {
+    func colors(for colorScheme: ColorScheme) -> KeypadKeyColors {
+        KeypadKeyColors(
+            foreground: tint(for: colorScheme),
+            background: background(for: colorScheme),
+            pressedBackground: pressedBackground(for: colorScheme),
+            border: border(for: colorScheme)
+        )
     }
 }
 
@@ -615,57 +563,6 @@ private extension String {
                 false
         }
     }
-}
-
-private extension View {
-
-    @ViewBuilder
-    func hardwareKeyboardInput(
-        isFocused: FocusState<Bool>.Binding,
-        handleKeyPress: @escaping (String) -> Bool,
-        handleDelete: @escaping () -> Void,
-        handleSubmit: @escaping () -> Void,
-        handlePaste: @escaping () -> Bool
-    ) -> some View {
-        if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *) {
-            self
-                .focusable()
-                .focused(isFocused)
-                .onKeyPress(phases: .down) { press in
-                    // Command/Control shortcuts arrive here as the bare character. Hex letters
-                    // overlap with shortcut letters (⌘C, ⌘A, …), so intercept the whole combo:
-                    // handle ⌘V / Ctrl+V as paste and swallow the rest instead of inserting it.
-                    if press.modifiers.contains(.command) || press.modifiers.contains(.control) {
-                        if press.key.character == "v" {
-                            return handlePaste() ? .handled : .ignored
-                        }
-                        return .ignored
-                    }
-                    if press.key == .delete {
-                        handleDelete()
-                        return .handled
-                    }
-                    if press.key == .return {
-                        handleSubmit()
-                        return .handled
-                    }
-                    return handleKeyPress(press.characters) ? .handled : .ignored
-                }
-        } else {
-            self
-        }
-    }
-}
-
-/// Reads the current pasteboard string across platforms.
-private var hexPasteboardString: String? {
-#if canImport(UIKit)
-    UIPasteboard.general.string
-#elseif canImport(AppKit)
-    NSPasteboard.general.string(forType: .string)
-#else
-    nil
-#endif
 }
 
 private struct HexKeyboardInputPreview: View {
