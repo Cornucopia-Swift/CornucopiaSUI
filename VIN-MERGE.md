@@ -2,7 +2,7 @@
 
 **Goal:** make `Automotive-Swift/VIN` the single source of truth for VIN domain logic, and have CornucopiaSUI consume it instead of maintaining its own private copies. Strategy is **augment-then-consume**, not a blind swap.
 
-**Status:** agreed, low urgency. Schedule after the keypad-toolkit milestone. Nothing is broken today — the ISO check-digit algorithm is stable, and the offline manufacturer table is only a fallback (NHTSA gives authoritative make/model when online). This is hygiene: one source of truth, richer + localized data, fewer tables to drift.
+**Status: ✅ done.** VIN package v2 released (`2.0.0`, breaking; old state tagged `pre-API-change`); CornucopiaSUI depends on it via `.package(url: …/VIN, from: "2.0.0")` and its VIN tables were replaced by thin wrappers. Both repos build and test green. This document is kept for the rationale/history.
 
 ## Why
 
@@ -22,12 +22,36 @@ Two implementations have already diverged:
 
 CornucopiaSUI keys region off the **ISO 3166 alpha-2 code** (`"DE"`), which powers `VINIdentity.flag` (🇩🇪) and the `Locale`-based `countryName`. The VIN package exposes only localized *name strings*, no code. A straight swap would **regress** the flag + OS-localized country name. So first add to the VIN package the two pieces CornucopiaSUI has that it lacks.
 
-### Phase 1 — enhance `Automotive-Swift/VIN`
+### Phase 1 — VIN package v2 API (`Automotive-Swift/VIN`)
 
-1. **ISO 3166 alpha-2 region code** accessor (e.g. `var wmiRegionCode: String?`). Port CornucopiaSUI's 54 ISO-3780 ranges (`vinRegionRanges` in `VINIdentity.swift`) + rank logic. This is the gating change — without it, do **not** migrate.
-2. **Model-year decoding** from position 10 (e.g. `var modelYear: Int?` / `func modelYear() -> Int?`). Port `modelYearCodes` (30 entries) from `VINTextField.swift`. Pure VIN logic that belongs here. Note the NA 30-year cycle ambiguity (Y=2000 repeats 2030) — document it.
-3. **Expected check digit** accessor, if not already derivable cleanly. CornucopiaSUI's `validWithCheckDigitWarning` needs the *computed* digit to show the user. `propose().checksumDigit` works but expose it directly (e.g. `var expectedCheckDigit: Character?`).
-4. Tests for the new accessors (the package already has good coverage; match its style).
+Tag the current state `pre-API-change` first; this is a deliberate, breaking v2.
+
+**Structured identity (replaces localized-string accessors).** The current `wmiRegion`/`wmiCountry`/`wmiManufacturer` return pre-localized `NSLocalizedString` lookups (`?`/`""` sentinels) and hide the ISO code. Replace with:
+- `var regionCode: String?` — ISO 3166-1 alpha-2. Port CornucopiaSUI's 54 ISO-3780 ranges + rank logic (`VINIdentity.swift`). **Gating change** — without it, flag/`Locale` localization can't be derived; do not migrate without it.
+- `var countryName: String?` — derived via `Locale.localizedString(forRegionCode:)` (localizes in *every* OS language, not just the bundled en/de/fr).
+- `var flag: String?` — emoji from the region code.
+- `var region: Continent?` — a `Continent` enum (africa/asia/europe/northAmerica/oceania/southAmerica) from the first WMI char (structured, no `.strings`).
+- `var manufacturer: String?` — `nil` when unknown (no more `?`). Migrate the 561-entry manufacturer table out of the three duplicated `.strings` files into Swift data (proper nouns aren't localized — en/de/fr are identical). Lookup tries 3-char WMI then 2-char.
+
+**Work on partial input.** `wmi`/`vds`/`vis`/`regionCode`/`manufacturer`/`modelYear` must decode from any prefix of sufficient length (≥1/≥2/≥3/≥10 chars) — drop the "return `""` unless full 17-char `isValid`" gate. This is what makes live as-you-type decoding possible (the whole reason CornucopiaSUI needs it).
+
+**Missing VIN anatomy.**
+- `var modelYear: Int?` — position 10. Port `modelYearCodes` (30 entries) from `VINTextField.swift`; document the NA 30-year-cycle ambiguity (Y=2000 repeats 2030).
+- `var assemblyPlant: Character?` — position 11.
+- `var serialNumber: String?` — positions 12–17.
+
+**Check digit.**
+- Rename `checksumDigit` → `actualCheckDigit` (it returns the existing 9th char, not the computed one).
+- Add public `var expectedCheckDigit: Character?` (the computed digit; `calculateChecksum` is currently private) — needed for CornucopiaSUI's `validWithCheckDigitWarning`.
+
+**Correctness / hygiene fixes.**
+- Fix the cross-string index bug in `wmiRegion`/`wmiCountry` (`wmi.index(self.content.startIndex, …)` advances `content`'s index against `wmi`; use `wmi.startIndex` / `prefix(n)`).
+- Replace the muddled single-`removeLast()` fallback in `computeLocalization` with explicit, structured lookups.
+- `init(content:)` should **uppercase** so `VIN(content: "1hg…")` isn't spuriously invalid — but keep invalid chars/length intact so `validity` still reports them (only `propose()` sanitizes aggressively).
+- Add `Sendable` conformance; bump `swift-tools-version` 5.4 → 5.9.
+- Drop the `Resources/*.lproj` and `defaultLocalization` from `Package.swift` once the `.strings` data store is gone.
+
+**Tests/docs.** Add coverage for the previously-untested check-digit math, model year, regionCode, and partial-input decoding; update README + the package's CLAUDE.md to the v2 API.
 
 ### Phase 2 — consume it from CornucopiaSUI
 

@@ -1,116 +1,58 @@
 import SwiftUI
 import Foundation
 import CornucopiaCore
+import VIN
 
-// MARK: - VIN Validation
+// MARK: - VIN Validation (backed by the VIN package)
 
-/// Valid VIN characters (excludes I, O, Q to avoid confusion with 1, 0)
-private let validVINCharacters: Set<Character> = Set("ABCDEFGHJKLMNPRSTUVWXYZ0123456789")
-
-/// VIN check digit weights for positions 1-17
-private let vinWeights = [8, 7, 6, 5, 4, 3, 2, 10, 0, 9, 8, 7, 6, 5, 4, 3, 2]
-
-/// VIN transliteration table for check digit calculation
-private let vinTransliteration: [Character: Int] = [
-    "A": 1, "B": 2, "C": 3, "D": 4, "E": 5, "F": 6, "G": 7, "H": 8,
-    "J": 1, "K": 2, "L": 3, "M": 4, "N": 5, "P": 7, "R": 9,
-    "S": 2, "T": 3, "U": 4, "V": 5, "W": 6, "X": 7, "Y": 8, "Z": 9,
-    "0": 0, "1": 1, "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8, "9": 9
-]
-
-/// Model year codes for position 10 (North American standard)
-private let modelYearCodes: [Character: String] = [
-    "A": "2010", "B": "2011", "C": "2012", "D": "2013", "E": "2014", "F": "2015",
-    "G": "2016", "H": "2017", "J": "2018", "K": "2019", "L": "2020", "M": "2021",
-    "N": "2022", "P": "2023", "R": "2024", "S": "2025", "T": "2026", "V": "2027",
-    "W": "2028", "X": "2029", "Y": "2000", "1": "2001", "2": "2002", "3": "2003",
-    "4": "2004", "5": "2005", "6": "2006", "7": "2007", "8": "2008", "9": "2009"
-]
-
-/// Returns true if the character is valid for VIN
+/// Returns true if the character is valid for a VIN (excludes I, O, Q).
 func isValidVINCharacter(_ char: Character) -> Bool {
-    validVINCharacters.contains(char.uppercased().first ?? char)
+    guard let scalar = String(char).uppercased().unicodeScalars.first else { return false }
+    return VIN.AllowedCharacters.contains(scalar)
 }
 
-/// Validates VIN length and characters
+/// Validates VIN length and characters, producing a UI-oriented validation state.
+///
+/// A complete VIN with a mismatching check digit is reported as
+/// `.validWithCheckDigitWarning` rather than invalid, because checksum
+/// verification is not mandatory in every region (notably parts of Asia and
+/// Europe) — the VIN is still structurally usable.
 func validateVIN(_ vin: String) -> VINTextField.ValidationState {
     let trimmed = vin.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-    
+
     if trimmed.isEmpty {
         return .empty
     }
-    
-    // Check length
     if trimmed.count > 17 {
         return .tooLong(trimmed)
     }
-    
-    // Check for invalid characters
-    for char in trimmed {
-        if !isValidVINCharacter(char) {
-            return .invalidCharacters(trimmed)
-        }
+    for char in trimmed where !isValidVINCharacter(char) {
+        return .invalidCharacters(trimmed)
     }
-    
     if trimmed.count < 17 {
         return .incomplete(trimmed, remaining: 17 - trimmed.count)
     }
-    
-    // Full VIN - validate check digit
+
+    let model = VIN(content: trimmed)
     let components = parseVINComponents(trimmed)
-    if isValidCheckDigit(trimmed) {
+    if model.isChecksumValid {
         return .valid(trimmed, components: components)
-    } else if let expectedCheckDigit = calculateCheckDigit(trimmed) {
-        return .validWithCheckDigitWarning(trimmed, components: components, expectedCheckDigit: expectedCheckDigit)
-    } else {
-        return .validWithCheckDigitWarning(trimmed, components: components, expectedCheckDigit: "?")
     }
+    return .validWithCheckDigitWarning(trimmed, components: components, expectedCheckDigit: model.expectedCheckDigit ?? "?")
 }
 
-/// Validates VIN check digit (position 9) and returns the expected check digit
-func calculateCheckDigit(_ vin: String) -> Character? {
-    guard vin.count == 17 else { return nil }
-
-    var sum = 0
-    for (index, char) in vin.enumerated() {
-        guard let value = vinTransliteration[char] else { return nil }
-        sum += value * vinWeights[index]
-    }
-
-    let remainder = sum % 11
-    return remainder == 10 ? "X" : Character(String(remainder))
-}
-
-/// Checks if the VIN check digit matches the calculated value
-func isValidCheckDigit(_ vin: String) -> Bool {
-    guard let expectedCheckDigit = calculateCheckDigit(vin) else { return false }
-    let actualCheckDigit = vin[vin.index(vin.startIndex, offsetBy: 8)]
-
-    if actualCheckDigit != expectedCheckDigit {
-        let correctedVIN = String(vin.prefix(8)) + String(expectedCheckDigit) + String(vin.suffix(8))
-        let logger = Cornucopia.Core.Logger()
-        logger.debug("🚗 VIN check digit validation failed - Original: \(vin), Expected digit: \(expectedCheckDigit) (actual: \(actualCheckDigit)), Suggested corrected VIN: \(correctedVIN)")
-        return false
-    }
-
-    return true
-}
-
-/// Parses VIN into its components
+/// Parses a full VIN into its display components via the VIN package.
 func parseVINComponents(_ vin: String) -> VINComponents {
     guard vin.count == 17 else {
         return VINComponents(wmi: "", vds: "", vis: "", modelYear: nil)
     }
-    
-    let wmi = String(vin.prefix(3))
-    let vds = String(vin.dropFirst(3).prefix(6))
-    let vis = String(vin.suffix(8))
-    
-    // Extract model year from position 10
-    let modelYearChar = vin[vin.index(vin.startIndex, offsetBy: 9)]
-    let modelYear = modelYearCodes[modelYearChar]
-    
-    return VINComponents(wmi: wmi, vds: vds, vis: vis, modelYear: modelYear)
+    let model = VIN(content: vin)
+    return VINComponents(
+        wmi: model.wmi,
+        vds: model.vds,
+        vis: model.vis,
+        modelYear: model.modelYear.map(String.init)
+    )
 }
 
 // MARK: - VIN Components
@@ -135,7 +77,7 @@ extension VINTextField {
     /// Model year for the position-10 character per the North American standard
     /// (the 30-year cycle is resolved to its most recent occurrence).
     public static func modelYear(forPosition10 character: Character) -> String? {
-        modelYearCodes[character]
+        VIN(content: String(repeating: "A", count: 9) + String(character)).modelYear.map(String.init)
     }
 }
 
