@@ -77,19 +77,21 @@ public struct IPv4KeyboardInput: View {
     private var display: some View {
         HStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 0) {
+                HStack(alignment: .lastTextBaseline, spacing: 0) {
                     ForEach(0..<4, id: \.self) { index in
                         ipv4OctetCell(at: index)
 
                         if index < 3 {
                             Text(".")
-                                .font(.system(.title3, design: .monospaced).weight(.semibold))
+                                .font(.system(.body, design: .monospaced).weight(.bold))
                                 .foregroundStyle(.secondary)
                                 .frame(width: 14)
                         }
                     }
                     Spacer(minLength: 0)
                 }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(placeholder)
 
                 HStack(spacing: 3) {
                     ForEach(0..<4, id: \.self) { index in
@@ -121,25 +123,30 @@ public struct IPv4KeyboardInput: View {
 
     private func ipv4OctetCell(at index: Int) -> some View {
         let value = octet(at: index)
+        let isActive = index == activeOctetIndex
 
         return VStack(alignment: .leading, spacing: 2) {
             Text("OCT \(index + 1)")
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(octetColor(at: index))
 
-            Text(value.isEmpty ? (text.isEmpty && index == 0 ? placeholder : " ") : value)
-                .font(.system(.body, design: .monospaced).weight(.medium))
-                .foregroundStyle(octetTextColor(value))
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            HStack(spacing: 1) {
+                if !value.isEmpty {
+                    Text(value)
+                        .foregroundStyle(octetTextColor(value))
+                }
+                NetworkSlotCursor(color: octetColor(at: index), isActive: isActive, isPulsing: isActiveSlotPulsing)
+                Spacer(minLength: 0)
+            }
+            .font(.system(.body, design: .monospaced).weight(.medium))
+            .lineLimit(1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func octetMarkerColor(at index: Int) -> Color {
         if index == activeOctetIndex {
-            return .blue.opacity(isActiveSlotPulsing ? 0.9 : 0.3)
+            return octetColor(at: index)
         }
         if !octet(at: index).isEmpty {
             return octetIsValid(at: index) ? octetColor(at: index) : .red
@@ -286,17 +293,25 @@ public struct IPv4KeyboardInput: View {
     private func canAppendDigit(_ digit: String) -> Bool {
         guard digit.count == 1, digit.first?.isNumber == true else { return false }
         guard activeOctetIndex < 4 else { return false }
-        return octet(at: activeOctetIndex).count < 3
+        let current = octet(at: activeOctetIndex)
+        guard current.count < 3 else { return false }
+        if let value = Int(current + digit), value > 255 { return false }
+        return true
     }
 
     private func appendDigit(_ digit: String) {
         guard canAppendDigit(digit) else { return }
+        let index = activeOctetIndex
         var currentParts = parts
-        while currentParts.count <= activeOctetIndex {
+        while currentParts.count <= index {
             currentParts.append("")
         }
-        currentParts[activeOctetIndex].append(digit)
-        text = currentParts.prefix(4).joined(separator: ".")
+        currentParts[index].append(digit)
+        var newText = currentParts.prefix(4).joined(separator: ".")
+        if index < 3, currentParts[index].count == 3 {
+            newText.append(".")
+        }
+        text = newText
         updateValidationState()
         requestFocus()
         feedback()
@@ -472,13 +487,13 @@ public struct MACKeyboardInput: View {
     private var display: some View {
         HStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 0) {
+                HStack(alignment: .lastTextBaseline, spacing: 0) {
                     ForEach(0..<6, id: \.self) { index in
                         macByteCell(at: index)
 
                         if index < 5, separatorStyle != .compact {
                             Text(separatorStyle.separator)
-                                .font(.system(.title3, design: .monospaced).weight(.semibold))
+                                .font(.system(.body, design: .monospaced).weight(.bold))
                                 .foregroundStyle(.secondary)
                                 .frame(width: separatorStyle == .dot && index.isOdd ? 14 : 10)
                                 .opacity(separatorStyle == .dot && index.isMultiple(of: 2) ? 0 : 1)
@@ -486,6 +501,8 @@ public struct MACKeyboardInput: View {
                     }
                     Spacer(minLength: 0)
                 }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(placeholder)
 
                 HStack(spacing: 3) {
                     ForEach(0..<6, id: \.self) { index in
@@ -517,24 +534,29 @@ public struct MACKeyboardInput: View {
 
     private func macByteCell(at index: Int) -> some View {
         let value = byte(at: index)
+        let isActive = index == activeByteIndex
         return VStack(alignment: .leading, spacing: 2) {
             Text("B\(index + 1)")
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(byteColor(at: index))
 
-            Text(value.isEmpty ? (rawHex.isEmpty && index == 0 ? placeholder : "  ") : value)
-                .font(.system(.body, design: .monospaced).weight(.medium))
-                .foregroundStyle(.primary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            HStack(spacing: 1) {
+                if !value.isEmpty {
+                    Text(value)
+                        .foregroundStyle(.primary)
+                }
+                NetworkSlotCursor(color: byteColor(at: index), isActive: isActive, isPulsing: isActiveSlotPulsing)
+                Spacer(minLength: 0)
+            }
+            .font(.system(.body, design: .monospaced).weight(.medium))
+            .lineLimit(1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func byteMarkerColor(at index: Int) -> Color {
         if index == activeByteIndex {
-            return .green.opacity(isActiveSlotPulsing ? 0.9 : 0.3)
+            return byteColor(at: index)
         }
         if !byte(at: index).isEmpty {
             return byteColor(at: index)
@@ -741,6 +763,25 @@ private extension MACKeyboardInput.SeparatorStyle {
             case .dot: "Cisco"
             case .compact: "Compact"
         }
+    }
+}
+
+/// A text-style insertion cursor for the network slot displays.
+///
+/// Only the active slot shows the cursor, pulsing slowly (mirroring
+/// `VINKeyboardInput`). Inactive slots keep the glyph at zero opacity so it still
+/// anchors the baseline the separators align to, without rendering a visible cursor.
+private struct NetworkSlotCursor: View {
+
+    let color: Color
+    let isActive: Bool
+    let isPulsing: Bool
+
+    var body: some View {
+        Text(verbatim: "|")
+            .foregroundStyle(color)
+            .opacity(isActive ? (isPulsing ? 0.95 : 0.25) : 0)
+            .animation(isActive ? .easeInOut(duration: 0.8).repeatForever(autoreverses: true) : .default, value: isPulsing)
     }
 }
 
