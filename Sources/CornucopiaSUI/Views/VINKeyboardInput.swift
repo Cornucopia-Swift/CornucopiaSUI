@@ -30,6 +30,7 @@ public struct VINKeyboardInput: View {
     @State private var isActiveSlotPulsing = false
     @State private var vehicleDetails: VINVehicleDetails?
     @State private var isDecodingVehicle = false
+    @State private var isScanningVIN = false
 #if canImport(UIKit)
     @State private var feedbackPerformer = VINKeyboardFeedbackPerformer()
 #endif
@@ -381,7 +382,16 @@ public struct VINKeyboardInput: View {
         }
     }
 
+    @ViewBuilder
     private var keypad: some View {
+        if isScanningVIN {
+            scannerPane
+        } else {
+            keypadKeys
+        }
+    }
+
+    private var keypadKeys: some View {
         VStack(spacing: 6) {
             keypadRow(numberKeys)
 
@@ -392,6 +402,7 @@ public struct VINKeyboardInput: View {
             HStack(spacing: 6) {
                 analysisPreview
                 Spacer(minLength: 0)
+                cameraKey
                 deleteKey
                 submitKey
             }
@@ -399,6 +410,74 @@ public struct VINKeyboardInput: View {
             .animation(.easeInOut(duration: 0.25), value: vehicleDetails)
             .animation(.easeInOut(duration: 0.25), value: isDecodingVehicle)
         }
+    }
+
+    private var scannerPane: some View {
+        ZStack(alignment: .topTrailing) {
+            scannerPreview
+
+            Button {
+                stopScanning()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.callout.weight(.bold))
+                    .frame(width: 40, height: 36)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(KeypadKeyStyle(role: VINKeyboardKeyRole.action))
+            .padding(8)
+            .accessibilityLabel("Stop VIN scan")
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 234)
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .strokeBorder(Color.accentColor.opacity(0.45), lineWidth: 1)
+        }
+        .transition(.opacity.combined(with: .scale(scale: 0.98)))
+    }
+
+    @ViewBuilder
+    private var scannerPreview: some View {
+#if canImport(VisionKit) && os(iOS)
+        if #available(iOS 16.0, *) {
+            VINScannerView { vin in
+                acceptScannedVIN(vin)
+            }
+            .overlay(alignment: .bottomLeading) {
+                scannerCaption
+            }
+        } else {
+            scannerUnavailable
+        }
+#else
+        scannerUnavailable
+#endif
+    }
+
+    private var scannerCaption: some View {
+        Label("Scan VIN", systemImage: "viewfinder")
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .background(.black.opacity(0.55), in: Capsule(style: .continuous))
+            .padding(10)
+    }
+
+    private var scannerUnavailable: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "camera.slash")
+                .font(.title2)
+            Text("Camera scanner unavailable")
+                .font(.caption.weight(.semibold))
+            Text("Enter the VIN with the keypad.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.secondary.opacity(0.12))
     }
 
     /// Decoded country/manufacturer for the current input, or `nil` when not yet
@@ -603,6 +682,21 @@ public struct VINKeyboardInput: View {
         .accessibilityLabel("Delete")
     }
 
+    @ViewBuilder
+    private var cameraKey: some View {
+        if Self.isVINCameraScanningSupported {
+            Button {
+                startScanning()
+            } label: {
+                Image(systemName: "camera.viewfinder")
+                    .font(.title3.weight(.semibold))
+                    .frame(width: 58, height: 42)
+            }
+            .buttonStyle(KeypadKeyStyle(role: VINKeyboardKeyRole.action))
+            .accessibilityLabel("Scan VIN with camera")
+        }
+    }
+
     private var submitKey: some View {
         Button {
             submit()
@@ -687,8 +781,30 @@ public struct VINKeyboardInput: View {
     private func submit() {
         guard canSubmit else { return }
         onSubmit?()
+        isScanningVIN = false
         isInputFocused = false
         focusedBinding?.wrappedValue = false
+        feedback()
+    }
+
+    private func startScanning() {
+        isScanningVIN = true
+        isInputFocused = false
+        focusedBinding?.wrappedValue = false
+        feedback()
+    }
+
+    private func stopScanning() {
+        isScanningVIN = false
+        requestFocus()
+        feedback()
+    }
+
+    private func acceptScannedVIN(_ vin: String) {
+        text.wrappedValue = vin
+        updateValidationState()
+        isScanningVIN = false
+        requestFocus()
         feedback()
     }
 
