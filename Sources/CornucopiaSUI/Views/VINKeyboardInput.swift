@@ -31,9 +31,6 @@ public struct VINKeyboardInput: View {
     @State private var vehicleDetails: VINVehicleDetails?
     @State private var isDecodingVehicle = false
     @State private var isScanningVIN = false
-    @State private var isScannerLensAnimating = false
-    @State private var isScannerLensWhirlVisible = false
-    @State private var scannerRevealProgress: CGFloat = 1
 #if canImport(UIKit)
     @State private var feedbackPerformer = VINKeyboardFeedbackPerformer()
 #endif
@@ -387,13 +384,15 @@ public struct VINKeyboardInput: View {
 
     private var keypad: some View {
         ZStack {
-            keypadKeys
-
             if isScanningVIN {
                 scannerPane
+                    .transition(.scannerCameraFlip)
+            } else {
+                keypadKeys
+                    .transition(.scannerKeyboardFlip)
             }
         }
-        .animation(.spring(response: 0.46, dampingFraction: 0.82), value: isScanningVIN)
+        .animation(.easeInOut(duration: 0.34), value: isScanningVIN)
     }
 
     private var keypadKeys: some View {
@@ -420,15 +419,6 @@ public struct VINKeyboardInput: View {
     private var scannerPane: some View {
         ZStack(alignment: .topTrailing) {
             scannerPreview
-                .mask {
-                    ScannerLensRevealMask(progress: scannerRevealProgress)
-                }
-                .overlay {
-                    if isScannerLensWhirlVisible {
-                        scannerLensWhirl
-                            .transition(.opacity.combined(with: .scale(scale: 0.82)))
-                    }
-                }
 
             Button {
                 stopScanning()
@@ -448,30 +438,6 @@ public struct VINKeyboardInput: View {
         .overlay {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .strokeBorder(Color.accentColor.opacity(0.45), lineWidth: 1)
-        }
-        .transition(.scannerLens)
-        .onAppear {
-            scannerRevealProgress = 0
-            isScannerLensWhirlVisible = true
-            isScannerLensAnimating = false
-            withAnimation(.spring(response: 0.54, dampingFraction: 0.84)) {
-                scannerRevealProgress = 1
-            }
-            withAnimation(.easeInOut(duration: 0.85).repeatForever(autoreverses: false)) {
-                isScannerLensAnimating = true
-            }
-            Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 620_000_000)
-                guard isScanningVIN else { return }
-                withAnimation(.easeOut(duration: 0.16)) {
-                    isScannerLensWhirlVisible = false
-                }
-            }
-        }
-        .onDisappear {
-            isScannerLensAnimating = false
-            isScannerLensWhirlVisible = false
-            scannerRevealProgress = 1
         }
     }
 
@@ -501,30 +467,6 @@ public struct VINKeyboardInput: View {
             .padding(.vertical, 7)
             .background(.black.opacity(0.55), in: Capsule(style: .continuous))
             .padding(10)
-    }
-
-    private var scannerLensWhirl: some View {
-        ZStack {
-            ForEach(0..<3, id: \.self) { index in
-                Circle()
-                    .trim(from: 0.08, to: 0.34)
-                    .stroke(
-                        Color.white.opacity(0.46 - Double(index) * 0.10),
-                        style: StrokeStyle(lineWidth: 2, lineCap: .round)
-                    )
-                    .frame(width: 74 + CGFloat(index) * 24, height: 74 + CGFloat(index) * 24)
-                    .rotationEffect(.degrees(isScannerLensAnimating ? 360 + Double(index) * 42 : Double(index) * 42))
-            }
-
-            Image(systemName: "camera.aperture")
-                .font(.title2.weight(.semibold))
-                .foregroundStyle(.white.opacity(0.72))
-                .rotationEffect(.degrees(isScannerLensAnimating ? -180 : 0))
-        }
-        .padding(14)
-        .background(.black.opacity(0.28), in: Circle())
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
     }
 
     private var scannerUnavailable: some View {
@@ -842,21 +784,27 @@ public struct VINKeyboardInput: View {
     private func submit() {
         guard canSubmit else { return }
         onSubmit?()
-        isScanningVIN = false
+        withAnimation(.easeInOut(duration: 0.34)) {
+            isScanningVIN = false
+        }
         isInputFocused = false
         focusedBinding?.wrappedValue = false
         feedback()
     }
 
     private func startScanning() {
-        isScanningVIN = true
+        withAnimation(.easeInOut(duration: 0.34)) {
+            isScanningVIN = true
+        }
         isInputFocused = false
         focusedBinding?.wrappedValue = false
         feedback()
     }
 
     private func stopScanning() {
-        isScanningVIN = false
+        withAnimation(.easeInOut(duration: 0.34)) {
+            isScanningVIN = false
+        }
         requestFocus()
         feedback()
     }
@@ -864,7 +812,9 @@ public struct VINKeyboardInput: View {
     private func acceptScannedVIN(_ vin: String) {
         text.wrappedValue = vin
         updateValidationState()
-        isScanningVIN = false
+        withAnimation(.easeInOut(duration: 0.34)) {
+            isScanningVIN = false
+        }
         requestFocus()
         scanSuccessFeedback()
     }
@@ -984,56 +934,47 @@ private final class VINKeyboardFeedbackPerformer {
 }
 #endif
 
-private struct ScannerLensTransitionModifier: ViewModifier {
+private struct ScannerFlipTransitionModifier: ViewModifier {
 
-    let isActive: Bool
+    let angle: Double
 
     func body(content: Content) -> some View {
         content
-            .opacity(isActive ? 0 : 1)
-            .blur(radius: isActive ? 12 : 0)
-            .scaleEffect(isActive ? 0.58 : 1)
-            .rotationEffect(.degrees(isActive ? -18 : 0))
-            .offset(y: isActive ? 92 : 0)
+            .opacity(abs(angle) >= 89 ? 0.08 : 1)
+            .rotation3DEffect(
+                .degrees(angle),
+                axis: (x: 0, y: 1, z: 0),
+                perspective: 0.72
+            )
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-    }
-}
-
-private struct ScannerLensRevealMask: Shape {
-
-    var progress: CGFloat
-
-    var animatableData: CGFloat {
-        get { progress }
-        set { progress = newValue }
-    }
-
-    func path(in rect: CGRect) -> Path {
-        let clampedProgress = min(max(progress, 0), 1)
-        guard clampedProgress < 0.995 else {
-            return RoundedRectangle(cornerRadius: 8, style: .continuous).path(in: rect)
-        }
-
-        let startingDiameter: CGFloat = 76
-        let endingDiameter = hypot(rect.width, rect.height) * 1.12
-        let diameter = startingDiameter + (endingDiameter - startingDiameter) * clampedProgress
-        let origin = CGPoint(
-            x: rect.midX - diameter / 2,
-            y: rect.midY - diameter / 2
-        )
-        return Circle().path(in: CGRect(origin: origin, size: CGSize(width: diameter, height: diameter)))
     }
 }
 
 private extension AnyTransition {
 
-    static var scannerLens: AnyTransition {
+    static var scannerCameraFlip: AnyTransition {
         .asymmetric(
             insertion: .modifier(
-                active: ScannerLensTransitionModifier(isActive: true),
-                identity: ScannerLensTransitionModifier(isActive: false)
+                active: ScannerFlipTransitionModifier(angle: 90),
+                identity: ScannerFlipTransitionModifier(angle: 0)
             ),
-            removal: .opacity.combined(with: .scale(scale: 0.96))
+            removal: .modifier(
+                active: ScannerFlipTransitionModifier(angle: -90),
+                identity: ScannerFlipTransitionModifier(angle: 0)
+            )
+        )
+    }
+
+    static var scannerKeyboardFlip: AnyTransition {
+        .asymmetric(
+            insertion: .modifier(
+                active: ScannerFlipTransitionModifier(angle: -90),
+                identity: ScannerFlipTransitionModifier(angle: 0)
+            ),
+            removal: .modifier(
+                active: ScannerFlipTransitionModifier(angle: 90),
+                identity: ScannerFlipTransitionModifier(angle: 0)
+            )
         )
     }
 }
