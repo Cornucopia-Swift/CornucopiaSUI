@@ -1,12 +1,12 @@
 //
-//  InputMethodsDemoApp.swift
-//  InputMethodsDemo
+//  CornucopiaSUIDemoApp.swift
+//  CornucopiaSUIDemo
 //
 
 import SwiftUI
 
 @main
-struct InputMethodsDemoApp: App {
+struct CornucopiaSUIDemoApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()

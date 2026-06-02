@@ -10,7 +10,13 @@ private let logger = Cornucopia.Core.Logger()
 @MainActor
 public final class NavigationController: ObservableObject {
 
-    @Published public var path = NavigationPath()
+    @Published public var path = NavigationPath() {
+        didSet {
+            if path.count < types.count {
+                types.removeLast(types.count - path.count)
+            }
+        }
+    }
     private var types: [String] = []
 
     public init() {}

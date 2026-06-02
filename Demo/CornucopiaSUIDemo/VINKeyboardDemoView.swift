@@ -1,6 +1,6 @@
 //
 //  VINKeyboardDemoView.swift
-//  InputMethodsDemo
+//  CornucopiaSUIDemo
 //
 
 import CornucopiaSUI
@@ -11,36 +11,23 @@ struct VINKeyboardDemoView: View {
     @State private var vin = ProcessInfo.processInfo.environment["DEMO_VIN"] ?? ""
     @State private var validationState: VINTextField.ValidationState = .empty
     @State private var layout: VINKeyboardInput.KeyboardLayout = .qwertz
+    @State private var selectedPreset: VINPreset = .empty
     @State private var decodeVehicleDetails = true
     @State private var submitted: [String] = []
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                content
-                Divider()
-                VINKeyboardInput(
-                    $vin,
-                    validationState: $validationState,
-                    keyboardLayout: layout,
-                    placeholder: "Enter VIN",
-                    autoFocus: true,
-                    vehicleDecoder: decodeVehicleDetails ? .nhtsa : nil
-                ) {
-                    submit()
-                }
-            }
-            .navigationTitle("VIN Keyboard")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Picker("Layout", selection: $layout) {
-                        Text("QWERTZ").tag(VINKeyboardInput.KeyboardLayout.qwertz)
-                        Text("QWERTY").tag(VINKeyboardInput.KeyboardLayout.qwerty)
-                        Text("AZERTY").tag(VINKeyboardInput.KeyboardLayout.azerty)
-                    }
-                    .pickerStyle(.segmented)
-                }
+        VStack(spacing: 0) {
+            content
+            Divider()
+            VINKeyboardInput(
+                $vin,
+                validationState: $validationState,
+                keyboardLayout: layout,
+                placeholder: "Enter VIN",
+                autoFocus: true,
+                vehicleDecoder: decodeVehicleDetails ? .nhtsa : nil
+            ) {
+                submit()
             }
         }
     }
@@ -48,18 +35,25 @@ struct VINKeyboardDemoView: View {
     private var content: some View {
         List {
             Section("Presets") {
-                HStack {
-                    presetButton("Empty", "")
-                    presetButton("US Honda", "1HGCM82633A123456")
-                    presetButton("US Tesla", "5YJ3E1EA7JF000316")
+                Picker("VIN", selection: $selectedPreset) {
+                    ForEach(VINPreset.allCases) { preset in
+                        Text(preset.title).tag(preset)
+                    }
                 }
-                HStack {
-                    presetButton("US Ford", "1FTFW1ET5DFC10312")
-                    presetButton("German VW", "WVWZZZ1KZ9W000001")
+                .pickerStyle(.menu)
+                .onChange(of: selectedPreset) { _, preset in
+                    vin = preset.value
                 }
             }
 
             Section("Options") {
+                Picker("Keyboard Type", selection: $layout) {
+                    Text("QWERTZ").tag(VINKeyboardInput.KeyboardLayout.qwertz)
+                    Text("QWERTY").tag(VINKeyboardInput.KeyboardLayout.qwerty)
+                    Text("AZERTY").tag(VINKeyboardInput.KeyboardLayout.azerty)
+                }
+                .pickerStyle(.menu)
+
                 Toggle("Decode vehicle details (NHTSA)", isOn: $decodeVehicleDetails)
             }
 
@@ -81,15 +75,6 @@ struct VINKeyboardDemoView: View {
                 }
             }
         }
-    }
-
-    private func presetButton(_ title: String, _ value: String) -> some View {
-        Button(title) {
-            vin = value
-        }
-        .buttonStyle(.bordered)
-        .font(.caption)
-        .frame(maxWidth: .infinity)
     }
 
     private func labeledRow(_ title: String, _ value: String) -> some View {
@@ -118,6 +103,36 @@ struct VINKeyboardDemoView: View {
         guard !vin.isEmpty else { return }
         submitted.insert(vin, at: 0)
         vin = ""
+    }
+
+    private enum VINPreset: String, CaseIterable, Identifiable {
+        case empty
+        case usHonda
+        case usTesla
+        case usFord
+        case germanVW
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+                case .empty: "Empty"
+                case .usHonda: "US Honda"
+                case .usTesla: "US Tesla"
+                case .usFord: "US Ford"
+                case .germanVW: "German VW"
+            }
+        }
+
+        var value: String {
+            switch self {
+                case .empty: ""
+                case .usHonda: "1HGCM82633A123456"
+                case .usTesla: "5YJ3E1EA7JF000316"
+                case .usFord: "1FTFW1ET5DFC10312"
+                case .germanVW: "WVWZZZ1KZ9W000001"
+            }
+        }
     }
 }
 

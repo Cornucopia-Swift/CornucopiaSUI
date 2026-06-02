@@ -1,6 +1,6 @@
 //
 //  NetworkKeyboardDemoView.swift
-//  InputMethodsDemo
+//  CornucopiaSUIDemo
 //
 
 import CornucopiaSUI
@@ -23,6 +23,8 @@ struct NetworkKeyboardDemoView: View {
     }
 
     @State private var inputKind: InputKind = .ipv4
+    @State private var selectedIPv4Preset: IPv4Preset = .empty
+    @State private var selectedMACPreset: MACPreset = .empty
     @State private var ipv4 = ""
     @State private var mac = ""
     @State private var macSeparator: MACKeyboardInput.SeparatorStyle = .colon
@@ -31,24 +33,10 @@ struct NetworkKeyboardDemoView: View {
     @State private var submitted: [String] = []
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                content
-                Divider()
-                keyboard
-            }
-            .navigationTitle("Network Keyboards")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Picker("Input", selection: $inputKind) {
-                        ForEach(InputKind.allCases) { kind in
-                            Text(kind.title).tag(kind)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                }
-            }
+        VStack(spacing: 0) {
+            content
+            Divider()
+            keyboard
         }
     }
 
@@ -56,36 +44,47 @@ struct NetworkKeyboardDemoView: View {
         List {
             Section("Presets") {
                 if inputKind == .ipv4 {
-                    HStack {
-                        presetButton("Empty", "")
-                        presetButton("Router", "192.168.0.1")
-                        presetButton("Localhost", "127.0.0.1")
+                    Picker("IPv4", selection: $selectedIPv4Preset) {
+                        ForEach(IPv4Preset.allCases) { preset in
+                            Text(preset.title).tag(preset)
+                        }
                     }
-                    HStack {
-                        presetButton("DNS", "8.8.8.8")
-                        presetButton("Adapter", "169.254.12.44")
+                    .pickerStyle(.menu)
+                    .onChange(of: selectedIPv4Preset) { _, preset in
+                        ipv4 = preset.value
                     }
                 } else {
-                    HStack {
-                        presetButton("Empty", "")
-                        presetButton("Apple", "A4:C1:38:2F:90:01")
+                    Picker("MAC", selection: $selectedMACPreset) {
+                        ForEach(MACPreset.allCases) { preset in
+                            Text(preset.title).tag(preset)
+                        }
                     }
-                    HStack {
-                        presetButton("Local", "02:00:00:00:00:01")
-                        presetButton("Broadcast", "FF:FF:FF:FF:FF:FF")
+                    .pickerStyle(.menu)
+                    .onChange(of: selectedMACPreset) { _, preset in
+                        mac = MACKeyboardInput.formattedMAC(preset.value, separatorStyle: macSeparator)
                     }
                 }
             }
 
-            if inputKind == .mac {
-                Section("MAC Format") {
+            Section("Options") {
+                Picker("Keyboard Type", selection: $inputKind) {
+                    ForEach(InputKind.allCases) { kind in
+                        Text(kind.title).tag(kind)
+                    }
+                }
+                .pickerStyle(.menu)
+
+                if inputKind == .mac {
                     Picker("Separator", selection: $macSeparator) {
                         Text("Colon").tag(MACKeyboardInput.SeparatorStyle.colon)
                         Text("Dash").tag(MACKeyboardInput.SeparatorStyle.dash)
                         Text("Dot").tag(MACKeyboardInput.SeparatorStyle.dot)
                         Text("Compact").tag(MACKeyboardInput.SeparatorStyle.compact)
                     }
-                    .pickerStyle(.segmented)
+                    .pickerStyle(.menu)
+                    .onChange(of: macSeparator) { _, separator in
+                        mac = MACKeyboardInput.formattedMAC(mac, separatorStyle: separator)
+                    }
                 }
             }
 
@@ -160,20 +159,6 @@ struct NetworkKeyboardDemoView: View {
         }
     }
 
-    private func presetButton(_ title: String, _ value: String) -> some View {
-        Button(title) {
-            switch inputKind {
-                case .ipv4:
-                    ipv4 = value
-                case .mac:
-                    mac = MACKeyboardInput.formattedMAC(value, separatorStyle: macSeparator)
-            }
-        }
-        .buttonStyle(.bordered)
-        .font(.caption)
-        .frame(maxWidth: .infinity)
-    }
-
     private func labeledRow(_ title: String, _ value: String) -> some View {
         HStack(alignment: .firstTextBaseline) {
             Text(title)
@@ -195,6 +180,63 @@ struct NetworkKeyboardDemoView: View {
         guard !mac.isEmpty else { return }
         submitted.insert("MAC \(mac)", at: 0)
         mac = ""
+    }
+
+    private enum IPv4Preset: String, CaseIterable, Identifiable {
+        case empty
+        case router
+        case localhost
+        case dns
+        case adapter
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+                case .empty: "Empty"
+                case .router: "Router"
+                case .localhost: "Localhost"
+                case .dns: "DNS"
+                case .adapter: "Adapter"
+            }
+        }
+
+        var value: String {
+            switch self {
+                case .empty: ""
+                case .router: "192.168.0.1"
+                case .localhost: "127.0.0.1"
+                case .dns: "8.8.8.8"
+                case .adapter: "169.254.12.44"
+            }
+        }
+    }
+
+    private enum MACPreset: String, CaseIterable, Identifiable {
+        case empty
+        case apple
+        case local
+        case broadcast
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+                case .empty: "Empty"
+                case .apple: "Apple"
+                case .local: "Local"
+                case .broadcast: "Broadcast"
+            }
+        }
+
+        var value: String {
+            switch self {
+                case .empty: ""
+                case .apple: "A4:C1:38:2F:90:01"
+                case .local: "02:00:00:00:00:01"
+                case .broadcast: "FF:FF:FF:FF:FF:FF"
+            }
+        }
     }
 }
 

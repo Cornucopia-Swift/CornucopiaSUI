@@ -1,6 +1,6 @@
 //
 //  HexKeyboardDemoView.swift
-//  InputMethodsDemo
+//  CornucopiaSUIDemo
 //
 
 import CornucopiaSUI
@@ -13,32 +13,28 @@ struct HexKeyboardDemoView: View {
     @State private var returnKey: ReturnKeyOption = .send
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                content
-                Divider()
-                HexKeyboardInput(
-                    $payload,
-                    placeholder: "Hex payload",
-                    returnKey: returnKey.value,
-                    autoFocus: true,
-                    minimumNibbleCount: 1,
-                    requiresEvenNibbleCount: true
-                ) {
-                    send()
-                }
+        VStack(spacing: 0) {
+            content
+            Divider()
+            HexKeyboardInput(
+                $payload,
+                placeholder: "Hex payload",
+                returnKey: returnKey.value,
+                autoFocus: true,
+                minimumNibbleCount: 1,
+                requiresEvenNibbleCount: true
+            ) {
+                send()
             }
-            .navigationTitle("Hex Keyboard")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Picker("Return key", selection: $returnKey) {
-                        ForEach(ReturnKeyOption.allCases) { option in
-                            Text(option.title).tag(option)
-                        }
+        }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Picker("Return key", selection: $returnKey) {
+                    ForEach(ReturnKeyOption.allCases) { option in
+                        Text(option.title).tag(option)
                     }
-                    .pickerStyle(.menu)
                 }
+                .pickerStyle(.menu)
             }
         }
     }

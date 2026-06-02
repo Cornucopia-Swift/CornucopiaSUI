@@ -24,6 +24,22 @@ swift test --filter <TestClassName>/<testMethodName>
 swift build -Xswiftc "-sdk" -Xswiftc "`xcrun --sdk iphonesimulator --show-sdk-path`" -Xswiftc "-target" -Xswiftc "x86_64-apple-ios16.0-simulator"
 ```
 
+### Demo App
+```bash
+cd Demo
+xcodegen generate
+xcodebuild -project CornucopiaSUIDemo.xcodeproj -scheme CornucopiaSUIDemo -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' build
+```
+
+The demo target is `CornucopiaSUIDemo` (not the older `InputMethodsDemo`) and is
+generated from `Demo/project.yml`. It is an iOS catalog app for exercising the
+full CornucopiaSUI surface under realistic Simulator conditions: domain
+keyboards, text fields, busy controls, confirmation dialogs, notification
+capsules, motion labels, navigation, view modifiers, reachability, local network
+authorization, image picking and idle timer utilities. Demo rows and focused
+examples use stable accessibility identifiers (`demo.row.<item>` and
+`demo.<area>`) so the app can be reused for automated UI tests.
+
 ## Architecture
 
 CornucopiaSUI is a SwiftUI utility library that extends the Cornucopia ecosystem. It provides reusable components and utilities for SwiftUI applications across Apple platforms.

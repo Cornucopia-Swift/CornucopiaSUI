@@ -29,6 +29,15 @@ Or add it through Xcode:
 3. Select the **master** branch
 4. Add to your target
 
+## Demo App
+
+The `Demo/` folder contains `CornucopiaSUIDemo`, an iOS catalog app that
+exercises the package under realistic Simulator conditions. It covers the
+domain keypads, text fields, busy buttons, dialogs, notification capsules,
+marquee and blending labels, navigation helpers, view modifiers, reachability,
+local-network authorization, image picking and idle-timer utilities. The catalog
+uses stable accessibility identifiers so it can also serve as a UI-test fixture.
+
 ## What's Included
 
 ### 🎛️ View Modifiers

@@ -1,17 +1,35 @@
-# InputMethodsDemo
+# CornucopiaSUI Demo
 
-An iOS host app for trying the package's domain-specific input widgets in the
-Simulator — something SwiftUI previews can't fully exercise (touch feedback,
-hardware-keyboard input, focus, live bindings).
+An iOS host app for trying the package under realistic Simulator conditions:
+touch feedback, hardware-keyboard input, focus, live bindings, sheets, overlays
+and system wrappers that SwiftUI previews cannot fully exercise.
+
+The first screen is a navigable catalog with stable accessibility identifiers
+(`demo.row.<item>` and focused `demo.<area>` IDs) so the app can double as a
+future UI-test fixture.
 
 Currently demonstrates:
 
-- `HexKeyboardInput` — hex payload entry with grouped-byte display, return-key
-  variants, and a live state / sent-payload log.
-- `VINKeyboardInput` — VIN keypad with QWERTZ/QWERTY layouts, WMI/VDS/VIS
-  grouping, check-digit highlight, and live validation state.
-- `IPv4KeyboardInput` and `MACKeyboardInput` — network-address keypads with
-  octet/byte slots, constrained domain keys, live validation, and submit logs.
+- Domain input widgets: `HexKeyboardInput`, `VINKeyboardInput`,
+  `IPv4KeyboardInput` and `MACKeyboardInput`.
+- Validated text entry: `StyledTextField`, `NetworkAwareTextField` and
+  `VINTextField`.
+- Async controls and overlays: `BusyButton`, `GenericBusyButton`,
+  `ConfirmationBusyButton`, `CC_confirmationDialog` and
+  `CC_notificationCapsule`.
+- Text and motion components: `MarqueeText`, `MarqueeScrollView`,
+  `BlendingTextLabel`, `SynchronizedBlendingTextLabel` and
+  `SynchronizedBlendingContainer`.
+- View modifiers: `CC_blinking`, `CC_debouncedTask`, `CC_onFirstAppear`,
+  `CC_measureSize`, `CC_task` and `CC_presentationDetentAutoHeight`.
+- Navigation and system helpers: `NavigationController`,
+  `ObservableReachability`, `ObservableLocalNetworkAuthorization`,
+  `ObservableBusyness`, `DevicePickerView`, `ImagePickerView`,
+  `UIImage.CC_resized(height:)` and
+  `UIApplication.CC_withIdleTimerDisabled`.
+
+The demo app includes local-network and photo-library usage descriptions because
+the system utility screen can trigger those framework paths.
 
 ## Build & run
 
@@ -22,14 +40,14 @@ checked in. Generate it, then open or build:
 ```bash
 cd Demo
 xcodegen generate
-open InputMethodsDemo.xcodeproj
+open CornucopiaSUIDemo.xcodeproj
 ```
 
 Or from the command line:
 
 ```bash
 cd Demo
-xcodebuild -project InputMethodsDemo.xcodeproj -scheme InputMethodsDemo \
+xcodebuild -project CornucopiaSUIDemo.xcodeproj -scheme CornucopiaSUIDemo \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' build
 ```
 
