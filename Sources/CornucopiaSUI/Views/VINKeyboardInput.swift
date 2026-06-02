@@ -420,6 +420,7 @@ public struct VINKeyboardInput: View {
             .animation(.easeInOut(duration: 0.25), value: previewIdentity)
             .animation(.easeInOut(duration: 0.25), value: vehicleDetails)
             .animation(.easeInOut(duration: 0.25), value: isDecodingVehicle)
+            .animation(.easeInOut(duration: 0.25), value: offlineModelYear)
         }
     }
 
@@ -506,24 +507,29 @@ public struct VINKeyboardInput: View {
         VINIdentity.decoding(text.wrappedValue)
     }
 
-    /// The shared analysis column left of the delete/return keys. While only part of
-    /// the VIN is known it shows the offline-derived country and manufacturer; once the
-    /// VIN is complete and a `vehicleDecoder` is supplied, the online vehicle widget
-    /// takes over the very same space.
+    /// The shared analysis column left of the delete/return keys. The offline identity
+    /// (country, manufacturer, model year) builds up additively as the VIN is typed and
+    /// stays put — including while the online lookup is running. Only once the decoder has
+    /// actually identified the vehicle do the richer make/model facts supersede and replace
+    /// it; a sparse or failed lookup leaves the country/manufacturer untouched.
     @ViewBuilder
     private var analysisPreview: some View {
-        if showsVehicleDetails {
+        if hasOnlineVehicleDecode {
             vehiclePreview
         } else if let identity = previewIdentity {
             identityColumn(identity)
+        } else if isDecodingVehicle {
+            vehiclePreview
         }
     }
 
-    /// Once the VIN carries enough characters to decode (the descriptor and model-year
-    /// positions), the vehicle widget claims the shared column in place of the
-    /// country/manufacturer preview.
-    private var showsVehicleDetails: Bool {
-        decodeKey != nil
+    /// True once the online decoder has actually identified the vehicle (a non-empty
+    /// make). Only then do the make/model details replace the offline country/manufacturer
+    /// preview — an empty or failed lookup (e.g. a manufacturer NHTSA doesn't know) keeps
+    /// the identity visible instead of collapsing the column to a bare model year.
+    private var hasOnlineVehicleDecode: Bool {
+        guard let make = vehicleDetails?.make else { return false }
+        return !make.isEmpty
     }
 
     private func identityColumn(_ identity: VINIdentity) -> some View {
@@ -536,11 +542,13 @@ public struct VINKeyboardInput: View {
                     .font(.caption.weight(.medium))
                     .frame(width: Self.identityColumnWidth)
 
-                if let manufacturer = identity.manufacturer {
-                    MarqueeText(manufacturer, startDelay: 2)
+                if let detail = identitySubline(identity) {
+                    MarqueeText(detail, startDelay: 2)
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .frame(width: Self.identityColumnWidth)
+                } else if isDecodingVehicle {
+                    vehicleLookupIndicator
                 }
             }
         }
@@ -550,11 +558,20 @@ public struct VINKeyboardInput: View {
         .accessibilityLabel(identityAccessibilityLabel(identity))
     }
 
+    /// Manufacturer and offline model year shown beneath the country, so the identity
+    /// grows additively as more of the VIN is typed rather than being replaced by a bare
+    /// year once the model-year position is reached.
+    private func identitySubline(_ identity: VINIdentity) -> String? {
+        let parts = [identity.manufacturer, offlineModelYear]
+            .compactMap { $0 }
+            .filter { !$0.isEmpty }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
     private func identityAccessibilityLabel(_ identity: VINIdentity) -> String {
-        if let manufacturer = identity.manufacturer {
-            return "\(identity.countryName), \(manufacturer)"
-        }
-        return identity.countryName
+        [identity.countryName, identitySubline(identity)]
+            .compactMap { $0 }
+            .joined(separator: ", ")
     }
 
     private static let identityColumnWidth: CGFloat = 150
