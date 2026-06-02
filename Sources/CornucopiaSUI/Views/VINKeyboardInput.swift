@@ -31,6 +31,7 @@ public struct VINKeyboardInput: View {
     @State private var vehicleDetails: VINVehicleDetails?
     @State private var isDecodingVehicle = false
     @State private var isScanningVIN = false
+    @State private var isScannerLensAnimating = false
 #if canImport(UIKit)
     @State private var feedbackPerformer = VINKeyboardFeedbackPerformer()
 #endif
@@ -382,13 +383,15 @@ public struct VINKeyboardInput: View {
         }
     }
 
-    @ViewBuilder
     private var keypad: some View {
-        if isScanningVIN {
-            scannerPane
-        } else {
+        ZStack {
             keypadKeys
+
+            if isScanningVIN {
+                scannerPane
+            }
         }
+        .animation(.spring(response: 0.46, dampingFraction: 0.82), value: isScanningVIN)
     }
 
     private var keypadKeys: some View {
@@ -415,6 +418,9 @@ public struct VINKeyboardInput: View {
     private var scannerPane: some View {
         ZStack(alignment: .topTrailing) {
             scannerPreview
+                .overlay {
+                    scannerLensWhirl
+                }
 
             Button {
                 stopScanning()
@@ -435,7 +441,16 @@ public struct VINKeyboardInput: View {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .strokeBorder(Color.accentColor.opacity(0.45), lineWidth: 1)
         }
-        .transition(.opacity.combined(with: .scale(scale: 0.98)))
+        .transition(.scannerLens)
+        .onAppear {
+            isScannerLensAnimating = false
+            withAnimation(.easeInOut(duration: 0.95).repeatForever(autoreverses: false)) {
+                isScannerLensAnimating = true
+            }
+        }
+        .onDisappear {
+            isScannerLensAnimating = false
+        }
     }
 
     @ViewBuilder
@@ -464,6 +479,30 @@ public struct VINKeyboardInput: View {
             .padding(.vertical, 7)
             .background(.black.opacity(0.55), in: Capsule(style: .continuous))
             .padding(10)
+    }
+
+    private var scannerLensWhirl: some View {
+        ZStack {
+            ForEach(0..<3, id: \.self) { index in
+                Circle()
+                    .trim(from: 0.08, to: 0.34)
+                    .stroke(
+                        Color.white.opacity(0.46 - Double(index) * 0.10),
+                        style: StrokeStyle(lineWidth: 2, lineCap: .round)
+                    )
+                    .frame(width: 74 + CGFloat(index) * 24, height: 74 + CGFloat(index) * 24)
+                    .rotationEffect(.degrees(isScannerLensAnimating ? 360 + Double(index) * 42 : Double(index) * 42))
+            }
+
+            Image(systemName: "camera.aperture")
+                .font(.title2.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.72))
+                .rotationEffect(.degrees(isScannerLensAnimating ? -180 : 0))
+        }
+        .padding(14)
+        .background(.black.opacity(0.28), in: Circle())
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 
     private var scannerUnavailable: some View {
@@ -805,7 +844,7 @@ public struct VINKeyboardInput: View {
         updateValidationState()
         isScanningVIN = false
         requestFocus()
-        feedback()
+        scanSuccessFeedback()
     }
 
     private func handleKeyPress(_ characters: String) -> Bool {
@@ -886,6 +925,12 @@ public struct VINKeyboardInput: View {
 #endif
     }
 
+    private func scanSuccessFeedback() {
+#if canImport(UIKit)
+        feedbackPerformer.performScanSuccess()
+#endif
+    }
+
     /// Returns uppercase VIN characters only, truncated to 17 characters.
     public static func normalizedVIN(_ input: String) -> String {
         String(input.uppercased().filter { isValidVINCharacter($0) }.prefix(17))
@@ -907,8 +952,43 @@ private final class VINKeyboardFeedbackPerformer {
         impactFeedback.impactOccurred(intensity: 0.75)
         impactFeedback.prepare()
     }
+
+    func performScanSuccess() {
+        AudioServicesPlaySystemSound(1057)
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        UIImpactFeedbackGenerator(style: .rigid).impactOccurred(intensity: 0.9)
+        impactFeedback.prepare()
+    }
 }
 #endif
+
+private struct ScannerLensTransitionModifier: ViewModifier {
+
+    let isActive: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(isActive ? 0 : 1)
+            .blur(radius: isActive ? 12 : 0)
+            .scaleEffect(isActive ? 0.58 : 1)
+            .rotationEffect(.degrees(isActive ? -18 : 0))
+            .offset(y: isActive ? 92 : 0)
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+}
+
+private extension AnyTransition {
+
+    static var scannerLens: AnyTransition {
+        .asymmetric(
+            insertion: .modifier(
+                active: ScannerLensTransitionModifier(isActive: true),
+                identity: ScannerLensTransitionModifier(isActive: false)
+            ),
+            removal: .opacity.combined(with: .scale(scale: 0.96))
+        )
+    }
+}
 
 private enum VINKeyboardKeyRole {
     case letter
