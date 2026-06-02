@@ -4,11 +4,34 @@
 import SwiftUI
 
 /// Style options for the busy indicator
-public enum BusyIndicatorStyle {
+public enum BusyIndicatorStyle: Equatable, Sendable {
     case classic           // Traditional spinner
     case modern           // Animated dots
     case pulse            // Pulsing circle
     case orbit            // Orbiting dot
+}
+
+/// Execution and presentation options shared by all busy button variants.
+public struct BusyButtonOptions {
+    public var shrinkToCircle: Bool
+    public var indicatorStyle: BusyIndicatorStyle
+    public var animation: Animation
+    public var cancelTaskOnDisappear: Bool
+    public var onError: ((Error) -> Void)?
+
+    public init(
+        shrinkToCircle: Bool = false,
+        indicatorStyle: BusyIndicatorStyle = .modern,
+        animation: Animation = .easeInOut(duration: 0.3),
+        cancelTaskOnDisappear: Bool = true,
+        onError: ((Error) -> Void)? = nil
+    ) {
+        self.shrinkToCircle = shrinkToCircle
+        self.indicatorStyle = indicatorStyle
+        self.animation = animation
+        self.cancelTaskOnDisappear = cancelTaskOnDisappear
+        self.onError = onError
+    }
 }
 
 /// Modern animated dots indicator
@@ -80,75 +103,167 @@ struct OrbitBusyIndicator: View {
     }
 }
 
+struct BusyIndicator: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    let style: BusyIndicatorStyle
+
+    var body: some View {
+        if reduceMotion || style == .classic {
+            ProgressView()
+                .scaleEffect(0.8)
+                .progressViewStyle(CircularProgressViewStyle())
+        } else {
+            switch style {
+            case .classic:
+                EmptyView()
+            case .modern:
+                ModernBusyIndicator()
+            case .pulse:
+                PulseBusyIndicator()
+            case .orbit:
+                OrbitBusyIndicator()
+            }
+        }
+    }
+}
+
+enum BusyButtonExecution {
+    static func start(
+        isBusy: Binding<Bool>,
+        task: Binding<Task<Void, Never>?>,
+        options: BusyButtonOptions,
+        action: @escaping () async throws -> Void
+    ) {
+        guard !isBusy.wrappedValue, task.wrappedValue == nil else { return }
+        withAnimation(options.animation) {
+            isBusy.wrappedValue = true
+        }
+
+        task.wrappedValue = Task {
+            do {
+                try await action()
+            } catch is CancellationError {
+            } catch {
+                await MainActor.run {
+                    options.onError?(error)
+                }
+            }
+
+            await MainActor.run {
+                withAnimation(options.animation) {
+                    isBusy.wrappedValue = false
+                }
+                task.wrappedValue = nil
+            }
+        }
+    }
+
+    static func cancel(
+        isBusy: Binding<Bool>,
+        task: Binding<Task<Void, Never>?>,
+        options: BusyButtonOptions
+    ) {
+        guard options.cancelTaskOnDisappear else { return }
+        task.wrappedValue?.cancel()
+        task.wrappedValue = nil
+        if isBusy.wrappedValue {
+            withAnimation(options.animation) {
+                isBusy.wrappedValue = false
+            }
+        }
+    }
+}
+
 /// A button wrapper that creates a new button with busy behavior.
 /// Unlike a traditional ViewModifier, this CREATES the button rather than modifying an existing one.
 /// This is necessary because SwiftUI doesn't allow intercepting/replacing a Button's action.
 public struct BusyButtonWrapper<Label: View>: View {
 
-    @Binding var isBusy: Bool
+    private let externalIsBusy: Binding<Bool>?
     let action: () async throws -> Void
-    let shrinkToCircle: Bool
-    let indicatorStyle: BusyIndicatorStyle
+    let role: ButtonRole?
+    let options: BusyButtonOptions
     let label: () -> Label
 
-    public var body: some View {
-        Button(action: {
-            guard !isBusy else { return }
-            withAnimation {
-                isBusy = true
-            }
-            Task {
-                defer {
-                    DispatchQueue.main.async {
-                        withAnimation {
-                            isBusy = false
-                        }
-                    }
-                }
-                try await action()
-            }
-        }) {
-            ZStack {
-                if shrinkToCircle && isBusy {
-                    label()
-                        .opacity(0)
-                        .clipShape(Circle())
-                } else {
-                    label()
-                        .opacity(isBusy ? 0 : 1)
-                }
+    @State private var internalIsBusy = false
 
-                if isBusy {
-                    switch indicatorStyle {
-                    case .classic:
-                        ProgressView()
-                            .scaleEffect(0.8)
-                            .progressViewStyle(CircularProgressViewStyle())
-                    case .modern:
-                        ModernBusyIndicator()
-                    case .pulse:
-                        PulseBusyIndicator()
-                    case .orbit:
-                        OrbitBusyIndicator()
-                    }
-                }
-            }
-        }
-        .allowsHitTesting(!isBusy)
-        .animation(.easeInOut(duration: 0.3), value: isBusy)
-        .clipShape(shrinkToCircle && isBusy ? AnyShape(Circle()) : AnyShape(Rectangle()))
+    public var body: some View {
+        BusyButtonCore(
+            isBusy: effectiveIsBusy,
+            role: role,
+            options: options,
+            action: action,
+            label: label
+        )
+    }
+
+    private var effectiveIsBusy: Binding<Bool> {
+        externalIsBusy ?? $internalIsBusy
     }
 
     public init(
         isBusy: Binding<Bool>,
+        role: ButtonRole? = nil,
         shrinkToCircle: Bool = false,
         indicatorStyle: BusyIndicatorStyle = .modern,
+        onError: ((Error) -> Void)? = nil,
         action: @escaping () async throws -> Void,
         @ViewBuilder label: @escaping () -> Label
     ) {
-        self._isBusy = isBusy
-        self.shrinkToCircle = shrinkToCircle
-        self.indicatorStyle = indicatorStyle
+        self.externalIsBusy = isBusy
+        self.role = role
+        self.options = BusyButtonOptions(
+            shrinkToCircle: shrinkToCircle,
+            indicatorStyle: indicatorStyle,
+            onError: onError
+        )
+        self.action = action
+        self.label = label
+    }
+
+    public init(
+        role: ButtonRole? = nil,
+        shrinkToCircle: Bool = false,
+        indicatorStyle: BusyIndicatorStyle = .modern,
+        onError: ((Error) -> Void)? = nil,
+        action: @escaping () async throws -> Void,
+        @ViewBuilder label: @escaping () -> Label
+    ) {
+        self.externalIsBusy = nil
+        self.role = role
+        self.options = BusyButtonOptions(
+            shrinkToCircle: shrinkToCircle,
+            indicatorStyle: indicatorStyle,
+            onError: onError
+        )
+        self.action = action
+        self.label = label
+    }
+
+    public init(
+        isBusy: Binding<Bool>,
+        role: ButtonRole? = nil,
+        options: BusyButtonOptions,
+        action: @escaping () async throws -> Void,
+        @ViewBuilder label: @escaping () -> Label
+    ) {
+        self.externalIsBusy = isBusy
+        self.role = role
+        self.options = options
+        self.action = action
+        self.label = label
+    }
+
+    public init(
+        role: ButtonRole? = nil,
+        options: BusyButtonOptions,
+        action: @escaping () async throws -> Void,
+        @ViewBuilder label: @escaping () -> Label
+    ) {
+        self.externalIsBusy = nil
+        self.role = role
+        self.options = options
         self.action = action
         self.label = label
     }
@@ -191,14 +306,69 @@ public extension View {
     /// ```
     func CC_busyButton(
         isBusy: Binding<Bool>,
+        role: ButtonRole? = nil,
         shrinkToCircle: Bool = false,
         indicatorStyle: BusyIndicatorStyle = .modern,
+        onError: ((Error) -> Void)? = nil,
         action: @escaping () async throws -> Void
     ) -> some View {
         BusyButtonWrapper(
             isBusy: isBusy,
+            role: role,
             shrinkToCircle: shrinkToCircle,
             indicatorStyle: indicatorStyle,
+            onError: onError,
+            action: action
+        ) {
+            self
+        }
+    }
+
+    /// Creates a self-managed busy button from this view.
+    func CC_busyButton(
+        role: ButtonRole? = nil,
+        shrinkToCircle: Bool = false,
+        indicatorStyle: BusyIndicatorStyle = .modern,
+        onError: ((Error) -> Void)? = nil,
+        action: @escaping () async throws -> Void
+    ) -> some View {
+        BusyButtonWrapper(
+            role: role,
+            shrinkToCircle: shrinkToCircle,
+            indicatorStyle: indicatorStyle,
+            onError: onError,
+            action: action
+        ) {
+            self
+        }
+    }
+
+    /// Creates a button from this view with fully reusable busy button options.
+    func CC_busyButton(
+        isBusy: Binding<Bool>,
+        role: ButtonRole? = nil,
+        options: BusyButtonOptions,
+        action: @escaping () async throws -> Void
+    ) -> some View {
+        BusyButtonWrapper(
+            isBusy: isBusy,
+            role: role,
+            options: options,
+            action: action
+        ) {
+            self
+        }
+    }
+
+    /// Creates a self-managed busy button from this view with fully reusable options.
+    func CC_busyButton(
+        role: ButtonRole? = nil,
+        options: BusyButtonOptions,
+        action: @escaping () async throws -> Void
+    ) -> some View {
+        BusyButtonWrapper(
+            role: role,
+            options: options,
             action: action
         ) {
             self
@@ -211,70 +381,90 @@ public struct GenericBusyButton<Label: View>: View {
 
     public typealias ActionFunc = () async throws -> Void
 
-    @Binding var isBusy: Bool
+    private let externalIsBusy: Binding<Bool>?
     let action: ActionFunc
-    let shrinkToCircle: Bool
-    let indicatorStyle: BusyIndicatorStyle
+    let role: ButtonRole?
+    let options: BusyButtonOptions
     let label: () -> Label
 
-    public var body: some View {
-        Button(action: {
-            guard !isBusy else { return }
-            withAnimation {
-                self.isBusy = true
-            }
-            Task {
-                defer {
-                    DispatchQueue.main.async {
-                        withAnimation {
-                            self.isBusy = false
-                        }
-                    }
-                }
-                try await self.action()
-            }
-        }) {
-            ZStack {
-                if shrinkToCircle && isBusy {
-                    label()
-                        .opacity(0)
-                        .clipShape(Circle())
-                } else {
-                    label()
-                        .opacity(isBusy ? 0 : 1)
-                }
+    @State private var internalIsBusy = false
 
-                if isBusy {
-                    switch indicatorStyle {
-                    case .classic:
-                        ProgressView()
-                            .scaleEffect(0.8)
-                            .progressViewStyle(CircularProgressViewStyle())
-                    case .modern:
-                        ModernBusyIndicator()
-                    case .pulse:
-                        PulseBusyIndicator()
-                    case .orbit:
-                        OrbitBusyIndicator()
-                    }
-                }
-            }
-        }
-        .allowsHitTesting(!isBusy)
-        .animation(.easeInOut(duration: 0.3), value: isBusy)
-        .clipShape(shrinkToCircle && isBusy ? AnyShape(Circle()) : AnyShape(Rectangle()))
+    public var body: some View {
+        BusyButtonCore(
+            isBusy: effectiveIsBusy,
+            role: role,
+            options: options,
+            action: action,
+            label: label
+        )
+    }
+
+    private var effectiveIsBusy: Binding<Bool> {
+        externalIsBusy ?? $internalIsBusy
     }
 
     public init(
         isBusy: Binding<Bool>,
+        role: ButtonRole? = nil,
         shrinkToCircle: Bool = false,
         indicatorStyle: BusyIndicatorStyle = .modern,
+        onError: ((Error) -> Void)? = nil,
         action: @escaping ActionFunc,
         @ViewBuilder label: @escaping () -> Label
     ) {
-        self._isBusy = isBusy
-        self.shrinkToCircle = shrinkToCircle
-        self.indicatorStyle = indicatorStyle
+        self.externalIsBusy = isBusy
+        self.role = role
+        self.options = BusyButtonOptions(
+            shrinkToCircle: shrinkToCircle,
+            indicatorStyle: indicatorStyle,
+            onError: onError
+        )
+        self.action = action
+        self.label = label
+    }
+
+    public init(
+        role: ButtonRole? = nil,
+        shrinkToCircle: Bool = false,
+        indicatorStyle: BusyIndicatorStyle = .modern,
+        onError: ((Error) -> Void)? = nil,
+        action: @escaping ActionFunc,
+        @ViewBuilder label: @escaping () -> Label
+    ) {
+        self.externalIsBusy = nil
+        self.role = role
+        self.options = BusyButtonOptions(
+            shrinkToCircle: shrinkToCircle,
+            indicatorStyle: indicatorStyle,
+            onError: onError
+        )
+        self.action = action
+        self.label = label
+    }
+
+    public init(
+        isBusy: Binding<Bool>,
+        role: ButtonRole? = nil,
+        options: BusyButtonOptions,
+        action: @escaping ActionFunc,
+        @ViewBuilder label: @escaping () -> Label
+    ) {
+        self.externalIsBusy = isBusy
+        self.role = role
+        self.options = options
+        self.action = action
+        self.label = label
+    }
+
+    public init(
+        role: ButtonRole? = nil,
+        options: BusyButtonOptions,
+        action: @escaping ActionFunc,
+        @ViewBuilder label: @escaping () -> Label
+    ) {
+        self.externalIsBusy = nil
+        self.role = role
+        self.options = options
         self.action = action
         self.label = label
     }
@@ -285,13 +475,102 @@ public extension GenericBusyButton where Label == Text {
     init(
         _ title: String,
         isBusy: Binding<Bool>,
+        role: ButtonRole? = nil,
         shrinkToCircle: Bool = false,
         indicatorStyle: BusyIndicatorStyle = .modern,
+        onError: ((Error) -> Void)? = nil,
         action: @escaping ActionFunc
     ) {
-        self.init(isBusy: isBusy, shrinkToCircle: shrinkToCircle, indicatorStyle: indicatorStyle, action: action) {
+        self.init(
+            isBusy: isBusy,
+            role: role,
+            shrinkToCircle: shrinkToCircle,
+            indicatorStyle: indicatorStyle,
+            onError: onError,
+            action: action
+        ) {
             Text(title)
         }
+    }
+
+    init(
+        _ title: String,
+        role: ButtonRole? = nil,
+        shrinkToCircle: Bool = false,
+        indicatorStyle: BusyIndicatorStyle = .modern,
+        onError: ((Error) -> Void)? = nil,
+        action: @escaping ActionFunc
+    ) {
+        self.init(
+            role: role,
+            shrinkToCircle: shrinkToCircle,
+            indicatorStyle: indicatorStyle,
+            onError: onError,
+            action: action
+        ) {
+            Text(title)
+        }
+    }
+
+    init(
+        _ title: String,
+        isBusy: Binding<Bool>,
+        role: ButtonRole? = nil,
+        options: BusyButtonOptions,
+        action: @escaping ActionFunc
+    ) {
+        self.init(isBusy: isBusy, role: role, options: options, action: action) {
+            Text(title)
+        }
+    }
+
+    init(
+        _ title: String,
+        role: ButtonRole? = nil,
+        options: BusyButtonOptions,
+        action: @escaping ActionFunc
+    ) {
+        self.init(role: role, options: options, action: action) {
+            Text(title)
+        }
+    }
+}
+
+private struct BusyButtonCore<Label: View>: View {
+
+    @Binding var isBusy: Bool
+    let role: ButtonRole?
+    let options: BusyButtonOptions
+    let action: () async throws -> Void
+    let label: () -> Label
+
+    @State private var task: Task<Void, Never>?
+
+    var body: some View {
+        Button(role: role) {
+            start()
+        } label: {
+            label()
+                .opacity(isBusy ? 0 : 1)
+                .accessibilityHidden(isBusy)
+                .overlay {
+                    if isBusy {
+                        BusyIndicator(style: options.indicatorStyle)
+                            .accessibilityLabel("Busy")
+                    }
+                }
+                .accessibilityValue(isBusy ? Text("Busy") : Text(""))
+        }
+        .disabled(isBusy)
+        .animation(options.animation, value: isBusy)
+        .clipShape(options.shrinkToCircle && isBusy ? AnyShape(Circle()) : AnyShape(Rectangle()))
+        .onDisappear {
+            BusyButtonExecution.cancel(isBusy: $isBusy, task: $task, options: options)
+        }
+    }
+
+    private func start() {
+        BusyButtonExecution.start(isBusy: $isBusy, task: $task, options: options, action: action)
     }
 }
 

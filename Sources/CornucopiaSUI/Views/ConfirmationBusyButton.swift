@@ -8,63 +8,49 @@ public struct ConfirmationBusyButton<Label: View>: View {
 
     public typealias ActionFunc = () async throws -> Void
 
-    @Binding var isBusy: Bool
+    private let externalIsBusy: Binding<Bool>?
     @State private var showConfirmation = false
+    @State private var internalIsBusy = false
 
     let confirmationTitle: String
     let confirmationMessage: String
     let confirmButtonTitle: String
     let confirmButtonRole: ButtonRole?
-    let indicatorStyle: BusyIndicatorStyle
+    let options: BusyButtonOptions
     let action: ActionFunc
     let label: () -> Label
+
+    @State private var task: Task<Void, Never>?
 
     public var body: some View {
         Button {
             guard !isBusy else { return }
             showConfirmation = true
         } label: {
-            ZStack {
-                label()
-                    .opacity(isBusy ? 0 : 1)
-
-                if isBusy {
-                    switch indicatorStyle {
-                    case .classic:
-                        ProgressView()
-                            .scaleEffect(0.8)
-                            .progressViewStyle(CircularProgressViewStyle())
-                    case .modern:
-                        ModernBusyIndicator()
-                    case .pulse:
-                        PulseBusyIndicator()
-                    case .orbit:
-                        OrbitBusyIndicator()
+            label()
+                .opacity(isBusy ? 0 : 1)
+                .accessibilityHidden(isBusy)
+                .overlay {
+                    if isBusy {
+                        BusyIndicator(style: options.indicatorStyle)
+                            .accessibilityLabel("Busy")
                     }
                 }
-            }
         }
-        .allowsHitTesting(!isBusy)
-        .animation(.easeInOut(duration: 0.3), value: isBusy)
+        .disabled(isBusy)
+        .animation(options.animation, value: isBusy)
+        .clipShape(options.shrinkToCircle && isBusy ? AnyShape(Circle()) : AnyShape(Rectangle()))
+        .accessibilityValue(isBusy ? Text("Busy") : Text(""))
+        .onDisappear {
+            BusyButtonExecution.cancel(isBusy: effectiveIsBusy, task: $task, options: options)
+        }
 #if os(iOS)
         .CC_confirmationDialog(
             confirmationTitle,
             isPresented: $showConfirmation,
             actions: [
                 ConfirmationDialogAction(confirmButtonTitle, role: confirmButtonRole) {
-                    withAnimation {
-                        isBusy = true
-                    }
-                    Task {
-                        defer {
-                            DispatchQueue.main.async {
-                                withAnimation {
-                                    isBusy = false
-                                }
-                            }
-                        }
-                        try await action()
-                    }
+                    runConfirmedAction()
                 }
             ],
             message: confirmationMessage
@@ -76,24 +62,20 @@ public struct ConfirmationBusyButton<Label: View>: View {
             titleVisibility: .visible
         ) {
             Button(confirmButtonTitle, role: confirmButtonRole) {
-                withAnimation {
-                    isBusy = true
-                }
-                Task {
-                    defer {
-                        DispatchQueue.main.async {
-                            withAnimation {
-                                isBusy = false
-                            }
-                        }
-                    }
-                    try await action()
-                }
+                runConfirmedAction()
             }
         } message: {
             Text(confirmationMessage)
         }
 #endif
+    }
+
+    private var effectiveIsBusy: Binding<Bool> {
+        externalIsBusy ?? $internalIsBusy
+    }
+
+    private var isBusy: Bool {
+        effectiveIsBusy.wrappedValue
     }
 
     public init(
@@ -102,18 +84,92 @@ public struct ConfirmationBusyButton<Label: View>: View {
         confirmationMessage: String,
         confirmButtonTitle: String,
         confirmButtonRole: ButtonRole? = nil,
+        shrinkToCircle: Bool = false,
         indicatorStyle: BusyIndicatorStyle = .modern,
+        onError: ((Error) -> Void)? = nil,
         action: @escaping ActionFunc,
         @ViewBuilder label: @escaping () -> Label
     ) {
-        self._isBusy = isBusy
+        self.externalIsBusy = isBusy
         self.confirmationTitle = confirmationTitle
         self.confirmationMessage = confirmationMessage
         self.confirmButtonTitle = confirmButtonTitle
         self.confirmButtonRole = confirmButtonRole
-        self.indicatorStyle = indicatorStyle
+        self.options = BusyButtonOptions(
+            shrinkToCircle: shrinkToCircle,
+            indicatorStyle: indicatorStyle,
+            onError: onError
+        )
         self.action = action
         self.label = label
+    }
+
+    public init(
+        confirmationTitle: String,
+        confirmationMessage: String,
+        confirmButtonTitle: String,
+        confirmButtonRole: ButtonRole? = nil,
+        shrinkToCircle: Bool = false,
+        indicatorStyle: BusyIndicatorStyle = .modern,
+        onError: ((Error) -> Void)? = nil,
+        action: @escaping ActionFunc,
+        @ViewBuilder label: @escaping () -> Label
+    ) {
+        self.externalIsBusy = nil
+        self.confirmationTitle = confirmationTitle
+        self.confirmationMessage = confirmationMessage
+        self.confirmButtonTitle = confirmButtonTitle
+        self.confirmButtonRole = confirmButtonRole
+        self.options = BusyButtonOptions(
+            shrinkToCircle: shrinkToCircle,
+            indicatorStyle: indicatorStyle,
+            onError: onError
+        )
+        self.action = action
+        self.label = label
+    }
+
+    public init(
+        isBusy: Binding<Bool>,
+        confirmationTitle: String,
+        confirmationMessage: String,
+        confirmButtonTitle: String,
+        confirmButtonRole: ButtonRole? = nil,
+        options: BusyButtonOptions,
+        action: @escaping ActionFunc,
+        @ViewBuilder label: @escaping () -> Label
+    ) {
+        self.externalIsBusy = isBusy
+        self.confirmationTitle = confirmationTitle
+        self.confirmationMessage = confirmationMessage
+        self.confirmButtonTitle = confirmButtonTitle
+        self.confirmButtonRole = confirmButtonRole
+        self.options = options
+        self.action = action
+        self.label = label
+    }
+
+    public init(
+        confirmationTitle: String,
+        confirmationMessage: String,
+        confirmButtonTitle: String,
+        confirmButtonRole: ButtonRole? = nil,
+        options: BusyButtonOptions,
+        action: @escaping ActionFunc,
+        @ViewBuilder label: @escaping () -> Label
+    ) {
+        self.externalIsBusy = nil
+        self.confirmationTitle = confirmationTitle
+        self.confirmationMessage = confirmationMessage
+        self.confirmButtonTitle = confirmButtonTitle
+        self.confirmButtonRole = confirmButtonRole
+        self.options = options
+        self.action = action
+        self.label = label
+    }
+
+    private func runConfirmedAction() {
+        BusyButtonExecution.start(isBusy: effectiveIsBusy, task: $task, options: options, action: action)
     }
 }
 
@@ -121,12 +177,39 @@ public struct ConfirmationBusyButton<Label: View>: View {
 public extension ConfirmationBusyButton where Label == Text {
     init(
         _ title: String,
+        confirmationTitle: String,
+        confirmationMessage: String,
+        confirmButtonTitle: String,
+        confirmButtonRole: ButtonRole? = nil,
+        shrinkToCircle: Bool = false,
+        indicatorStyle: BusyIndicatorStyle = .modern,
+        onError: ((Error) -> Void)? = nil,
+        action: @escaping ActionFunc
+    ) {
+        self.init(
+            confirmationTitle: confirmationTitle,
+            confirmationMessage: confirmationMessage,
+            confirmButtonTitle: confirmButtonTitle,
+            confirmButtonRole: confirmButtonRole,
+            shrinkToCircle: shrinkToCircle,
+            indicatorStyle: indicatorStyle,
+            onError: onError,
+            action: action
+        ) {
+            Text(title)
+        }
+    }
+
+    init(
+        _ title: String,
         isBusy: Binding<Bool>,
         confirmationTitle: String,
         confirmationMessage: String,
         confirmButtonTitle: String,
         confirmButtonRole: ButtonRole? = nil,
+        shrinkToCircle: Bool = false,
         indicatorStyle: BusyIndicatorStyle = .modern,
+        onError: ((Error) -> Void)? = nil,
         action: @escaping ActionFunc
     ) {
         self.init(
@@ -135,7 +218,53 @@ public extension ConfirmationBusyButton where Label == Text {
             confirmationMessage: confirmationMessage,
             confirmButtonTitle: confirmButtonTitle,
             confirmButtonRole: confirmButtonRole,
+            shrinkToCircle: shrinkToCircle,
             indicatorStyle: indicatorStyle,
+            onError: onError,
+            action: action
+        ) {
+            Text(title)
+        }
+    }
+
+    init(
+        _ title: String,
+        confirmationTitle: String,
+        confirmationMessage: String,
+        confirmButtonTitle: String,
+        confirmButtonRole: ButtonRole? = nil,
+        options: BusyButtonOptions,
+        action: @escaping ActionFunc
+    ) {
+        self.init(
+            confirmationTitle: confirmationTitle,
+            confirmationMessage: confirmationMessage,
+            confirmButtonTitle: confirmButtonTitle,
+            confirmButtonRole: confirmButtonRole,
+            options: options,
+            action: action
+        ) {
+            Text(title)
+        }
+    }
+
+    init(
+        _ title: String,
+        isBusy: Binding<Bool>,
+        confirmationTitle: String,
+        confirmationMessage: String,
+        confirmButtonTitle: String,
+        confirmButtonRole: ButtonRole? = nil,
+        options: BusyButtonOptions,
+        action: @escaping ActionFunc
+    ) {
+        self.init(
+            isBusy: isBusy,
+            confirmationTitle: confirmationTitle,
+            confirmationMessage: confirmationMessage,
+            confirmButtonTitle: confirmButtonTitle,
+            confirmButtonRole: confirmButtonRole,
+            options: options,
             action: action
         ) {
             Text(title)
