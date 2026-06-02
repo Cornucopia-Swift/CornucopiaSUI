@@ -8,6 +8,13 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var navigationController = NavigationController()
+    @State private var didApplyInitialItem = false
+
+    private let initialItem: DemoItem?
+
+    init(initialItem: DemoItem? = ProcessInfo.processInfo.CC_demoInitialItem) {
+        self.initialItem = initialItem
+    }
 
     var body: some View {
         NavigationStack(path: $navigationController.path) {
@@ -39,6 +46,24 @@ struct ContentView: View {
             }
         }
         .environment(\.CC_navigationController, navigationController)
+        .task {
+            guard !didApplyInitialItem, let initialItem else { return }
+            didApplyInitialItem = true
+            navigationController.push(initialItem)
+        }
+    }
+}
+
+private extension ProcessInfo {
+    var CC_demoInitialItem: DemoItem? {
+        guard
+            let rawValue = environment["CORNUCOPIA_DEMO_SCREEN"],
+            rawValue != "catalog"
+        else {
+            return nil
+        }
+
+        return DemoItem(rawValue: rawValue)
     }
 }
 
