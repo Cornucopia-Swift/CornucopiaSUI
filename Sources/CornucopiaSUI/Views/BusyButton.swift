@@ -32,6 +32,7 @@ public struct BusyButton: View {
 
     public var button: some View {
         Button(action: {
+            guard !isBusy else { return }
             withAnimation {
                 self.isBusy = true
             }
@@ -43,7 +44,7 @@ public struct BusyButton: View {
             Text(title)
                 .opacity(isBusy ? 0 : 1)
         }
-        .disabled(isBusy)
+        .allowsHitTesting(!isBusy)
     }
 
     public init(isBusy: Binding<Bool>, title: String, action: @escaping ActionFunc) {

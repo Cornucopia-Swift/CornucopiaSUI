@@ -13,73 +13,69 @@ public enum BusyIndicatorStyle {
 
 /// Modern animated dots indicator
 struct ModernBusyIndicator: View {
-    @State private var animationPhase = 0.0
-
     var body: some View {
-        HStack(spacing: 4) {
-            ForEach(0..<3) { index in
-                Circle()
-                    .fill(Color.primary.opacity(0.6))
-                    .frame(width: 6, height: 6)
-                    .scaleEffect(animationPhase == Double(index) ? 1.3 : 0.8)
-                    .animation(
-                        .easeInOut(duration: 0.6)
-                        .repeatForever()
-                        .delay(Double(index) * 0.2),
-                        value: animationPhase
-                    )
+        TimelineView(.animation) { timeline in
+            let time = timeline.date.timeIntervalSinceReferenceDate
+
+            HStack(spacing: 4) {
+                ForEach(0..<3) { index in
+                    let phase = (time + Double(index) * 0.16).truncatingRemainder(dividingBy: 0.72) / 0.72
+                    let pulse = 0.5 + 0.5 * sin(phase * 2 * .pi)
+
+                    Circle()
+                        .fill(Color.primary.opacity(0.55 + pulse * 0.35))
+                        .frame(width: 6, height: 6)
+                        .scaleEffect(0.75 + pulse * 0.55)
+                }
             }
-        }
-        .onAppear {
-            animationPhase = 2.0
         }
     }
 }
 
 /// Pulsing circle indicator
 struct PulseBusyIndicator: View {
-    @State private var isPulsing = false
-
     var body: some View {
-        Circle()
-            .stroke(Color.primary.opacity(0.6), lineWidth: 2)
-            .frame(width: 20, height: 20)
-            .scaleEffect(isPulsing ? 1.2 : 0.8)
-            .opacity(isPulsing ? 0.3 : 1.0)
-            .animation(
-                .easeInOut(duration: 0.8)
-                .repeatForever(autoreverses: true),
-                value: isPulsing
-            )
-            .onAppear {
-                isPulsing = true
+        TimelineView(.animation) { timeline in
+            let time = timeline.date.timeIntervalSinceReferenceDate
+            let duration = 1.35
+
+            ZStack {
+                ForEach(0..<2) { index in
+                    let phase = (time + Double(index) * duration / 2).truncatingRemainder(dividingBy: duration) / duration
+
+                    Circle()
+                        .stroke(Color.primary.opacity(0.75 * (1 - phase)), lineWidth: 2)
+                        .frame(width: 18, height: 18)
+                        .scaleEffect(0.55 + phase * 0.85)
+                }
+
+                Circle()
+                    .fill(Color.primary.opacity(0.82))
+                    .frame(width: 6, height: 6)
             }
+            .frame(width: 24, height: 24)
+        }
     }
 }
 
 /// Orbiting dot indicator
 struct OrbitBusyIndicator: View {
-    @State private var rotation = 0.0
-
     var body: some View {
-        ZStack {
-            Circle()
-                .fill(Color.primary.opacity(0.2))
-                .frame(width: 20, height: 20)
+        TimelineView(.animation) { timeline in
+            let time = timeline.date.timeIntervalSinceReferenceDate
+            let rotation = Angle.degrees(time.truncatingRemainder(dividingBy: 1.0) * 360)
 
-            Circle()
-                .fill(Color.primary.opacity(0.8))
-                .frame(width: 6, height: 6)
-                .offset(x: 10)
-                .rotationEffect(.degrees(rotation))
-                .animation(
-                    .linear(duration: 1.0)
-                    .repeatForever(autoreverses: false),
-                    value: rotation
-                )
-        }
-        .onAppear {
-            rotation = 360
+            ZStack {
+                Circle()
+                    .stroke(Color.primary.opacity(0.25), lineWidth: 2)
+                    .frame(width: 20, height: 20)
+
+                Circle()
+                    .fill(Color.primary.opacity(0.86))
+                    .frame(width: 6, height: 6)
+                    .offset(x: 10)
+                    .rotationEffect(rotation)
+            }
         }
     }
 }
@@ -97,6 +93,7 @@ public struct BusyButtonWrapper<Label: View>: View {
 
     public var body: some View {
         Button(action: {
+            guard !isBusy else { return }
             withAnimation {
                 isBusy = true
             }
@@ -137,7 +134,7 @@ public struct BusyButtonWrapper<Label: View>: View {
                 }
             }
         }
-        .disabled(isBusy)
+        .allowsHitTesting(!isBusy)
         .animation(.easeInOut(duration: 0.3), value: isBusy)
         .clipShape(shrinkToCircle && isBusy ? AnyShape(Circle()) : AnyShape(Rectangle()))
     }
@@ -222,6 +219,7 @@ public struct GenericBusyButton<Label: View>: View {
 
     public var body: some View {
         Button(action: {
+            guard !isBusy else { return }
             withAnimation {
                 self.isBusy = true
             }
@@ -262,7 +260,7 @@ public struct GenericBusyButton<Label: View>: View {
                 }
             }
         }
-        .disabled(isBusy)
+        .allowsHitTesting(!isBusy)
         .animation(.easeInOut(duration: 0.3), value: isBusy)
         .clipShape(shrinkToCircle && isBusy ? AnyShape(Circle()) : AnyShape(Rectangle()))
     }

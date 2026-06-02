@@ -61,7 +61,7 @@ struct BusyButtonsDemoView: View {
                         confirmButtonRole: .destructive,
                         indicatorStyle: .pulse
                     ) {
-                        await appendAfterDelay("Confirmed action completed")
+                        await appendAfterDelay("Confirmed action completed", delay: .milliseconds(1_600))
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(.red)
@@ -84,8 +84,8 @@ struct BusyButtonsDemoView: View {
     }
 
     @MainActor
-    private func appendAfterDelay(_ message: String) async {
-        try? await Task.sleep(for: .milliseconds(800))
+    private func appendAfterDelay(_ message: String, delay: Duration = .milliseconds(800)) async {
+        try? await Task.sleep(for: delay)
         log.insert(message, at: 0)
     }
 }

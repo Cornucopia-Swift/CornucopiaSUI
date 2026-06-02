@@ -21,6 +21,7 @@ public struct ConfirmationBusyButton<Label: View>: View {
 
     public var body: some View {
         Button {
+            guard !isBusy else { return }
             showConfirmation = true
         } label: {
             ZStack {
@@ -43,7 +44,7 @@ public struct ConfirmationBusyButton<Label: View>: View {
                 }
             }
         }
-        .disabled(isBusy)
+        .allowsHitTesting(!isBusy)
         .animation(.easeInOut(duration: 0.3), value: isBusy)
 #if os(iOS)
         .CC_confirmationDialog(
