@@ -17,6 +17,13 @@ final class VINScannerTests: XCTestCase {
         )
     }
 
+    func testFindsFCAWindowStickerVIN() {
+        XCTAssertEqual(
+            VINKeyboardInput.scannedVINCandidate(in: "VIN: 2C4RDGEG3JR225345"),
+            "2C4RDGEG3JR225345"
+        )
+    }
+
     func testRejectsIncompleteCandidate() {
         XCTAssertNil(VINKeyboardInput.scannedVINCandidate(in: "VIN 1HGCM82633A00435"))
     }

@@ -20,6 +20,7 @@ final class VINIdentityTests: XCTestCase {
             ("SALGA2", "GB", "Land Rover"),
             ("YV1AB", "SE", "Volvo"),
             ("5YJSA1", "US", "Tesla"),
+            ("2C4RDG", "CA", "FCA Canada"),
         ]
 
         for testCase in cases {

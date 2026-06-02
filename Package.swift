@@ -19,7 +19,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/Cornucopia-Swift/CornucopiaCore", branch: "master"),
         .package(url: "https://github.com/SFSafeSymbols/SFSafeSymbols", branch: "stable"),
-        .package(url: "https://github.com/Automotive-Swift/VIN", from: "2.0.0"),
+        .package(url: "https://github.com/Automotive-Swift/VIN", branch: "tmp/fca-wmi-vpic"),
     ],
     targets: [
         .target(
