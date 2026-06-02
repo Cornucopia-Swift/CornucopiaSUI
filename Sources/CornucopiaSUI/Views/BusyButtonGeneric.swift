@@ -4,7 +4,7 @@
 import SwiftUI
 
 /// Style options for the busy indicator
-public enum BusyIndicatorStyle {
+public enum BusyIndicatorStyle: Equatable, Sendable {
     case classic           // Traditional spinner
     case modern           // Animated dots
     case pulse            // Pulsing circle
@@ -104,20 +104,73 @@ struct OrbitBusyIndicator: View {
 }
 
 struct BusyIndicator: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let style: BusyIndicatorStyle
 
     var body: some View {
-        switch style {
-        case .classic:
+        if reduceMotion || style == .classic {
             ProgressView()
                 .scaleEffect(0.8)
                 .progressViewStyle(CircularProgressViewStyle())
-        case .modern:
-            ModernBusyIndicator()
-        case .pulse:
-            PulseBusyIndicator()
-        case .orbit:
-            OrbitBusyIndicator()
+        } else {
+            switch style {
+            case .classic:
+                EmptyView()
+            case .modern:
+                ModernBusyIndicator()
+            case .pulse:
+                PulseBusyIndicator()
+            case .orbit:
+                OrbitBusyIndicator()
+            }
+        }
+    }
+}
+
+enum BusyButtonExecution {
+    static func start(
+        isBusy: Binding<Bool>,
+        task: Binding<Task<Void, Never>?>,
+        options: BusyButtonOptions,
+        action: @escaping () async throws -> Void
+    ) {
+        guard !isBusy.wrappedValue, task.wrappedValue == nil else { return }
+        withAnimation(options.animation) {
+            isBusy.wrappedValue = true
+        }
+
+        task.wrappedValue = Task {
+            do {
+                try await action()
+            } catch is CancellationError {
+            } catch {
+                await MainActor.run {
+                    options.onError?(error)
+                }
+            }
+
+            await MainActor.run {
+                withAnimation(options.animation) {
+                    isBusy.wrappedValue = false
+                }
+                task.wrappedValue = nil
+            }
+        }
+    }
+
+    static func cancel(
+        isBusy: Binding<Bool>,
+        task: Binding<Task<Void, Never>?>,
+        options: BusyButtonOptions
+    ) {
+        guard options.cancelTaskOnDisappear else { return }
+        task.wrappedValue?.cancel()
+        task.wrappedValue = nil
+        if isBusy.wrappedValue {
+            withAnimation(options.animation) {
+                isBusy.wrappedValue = false
+            }
         }
     }
 }
@@ -512,40 +565,12 @@ private struct BusyButtonCore<Label: View>: View {
         .animation(options.animation, value: isBusy)
         .clipShape(options.shrinkToCircle && isBusy ? AnyShape(Circle()) : AnyShape(Rectangle()))
         .onDisappear {
-            guard options.cancelTaskOnDisappear else { return }
-            task?.cancel()
-            task = nil
-            if isBusy {
-                withAnimation(options.animation) {
-                    isBusy = false
-                }
-            }
+            BusyButtonExecution.cancel(isBusy: $isBusy, task: $task, options: options)
         }
     }
 
     private func start() {
-        guard !isBusy, task == nil else { return }
-        withAnimation(options.animation) {
-            isBusy = true
-        }
-
-        task = Task {
-            do {
-                try await action()
-            } catch is CancellationError {
-            } catch {
-                await MainActor.run {
-                    options.onError?(error)
-                }
-            }
-
-            await MainActor.run {
-                withAnimation(options.animation) {
-                    isBusy = false
-                }
-                task = nil
-            }
-        }
+        BusyButtonExecution.start(isBusy: $isBusy, task: $task, options: options, action: action)
     }
 }
 

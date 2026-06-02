@@ -89,7 +89,6 @@ struct BusyButtonsDemoView: View {
     @State private var modernBusy = false
     @State private var pulseBusy = false
     @State private var orbitBusy = false
-    @State private var confirmedBusy = false
     @State private var log: [String] = []
 
     var body: some View {
@@ -127,11 +126,23 @@ struct BusyButtonsDemoView: View {
                             Label("Route", systemImage: "point.3.connected.trianglepath.dotted")
                         }
                         .buttonStyle(.borderedProminent)
+
+                        GenericBusyButton(
+                            "Fail",
+                            role: .destructive,
+                            indicatorStyle: .modern,
+                            onError: { error in
+                                log.append("Error handled: \(error.localizedDescription)")
+                            }
+                        ) {
+                            try await Task.sleep(for: .milliseconds(450))
+                            throw BusyButtonsDemoError.simulated
+                        }
+                        .buttonStyle(.bordered)
                     }
 
                     ConfirmationBusyButton(
                         "Erase Cache",
-                        isBusy: $confirmedBusy,
                         confirmationTitle: "Erase cached data?",
                         confirmationMessage: "The demo only appends to the log, but production flows use this before destructive work.",
                         confirmButtonTitle: "Erase",
@@ -164,6 +175,14 @@ struct BusyButtonsDemoView: View {
     private func appendAfterDelay(_ message: String, delay: Duration = .milliseconds(800)) async {
         try? await Task.sleep(for: delay)
         log.insert(message, at: 0)
+    }
+}
+
+private enum BusyButtonsDemoError: LocalizedError {
+    case simulated
+
+    var errorDescription: String? {
+        "Simulated busy action failed."
     }
 }
 
