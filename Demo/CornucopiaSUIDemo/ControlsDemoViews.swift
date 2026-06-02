@@ -7,6 +7,83 @@ import CornucopiaSUI
 import SFSafeSymbols
 import SwiftUI
 
+struct TextFieldStepperDemoView: View {
+    @State private var cabinTemperature = 21.5
+    @State private var batteryVoltage = 12.4
+    @State private var retryInterval = 250.0
+    @State private var throttle = 35.0
+    private let unitSpace = "\u{202F}"
+
+    private let compactConfiguration = TextFieldStepperConfiguration(
+        step: 5,
+        range: 0...100,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+        buttonSize: 30,
+        controlColor: .teal
+    )
+
+    var body: some View {
+        DemoScroll {
+            DemoPanel("TextFieldStepper", subtitle: "Tap the value to type directly, or hold a control to repeat the step.") {
+                VStack(spacing: 18) {
+                    TextFieldStepper(
+                        value: $cabinTemperature,
+                        unit: "°C",
+                        label: "Cabin Temperature",
+                        step: 0.5,
+                        range: -20...60,
+                        minimumFractionDigits: 1,
+                        maximumFractionDigits: 1
+                    )
+                    .demoID("textfieldstepper.temperature")
+
+                    TextFieldStepper(
+                        value: $batteryVoltage,
+                        unit: "V",
+                        label: "Battery Voltage",
+                        step: 0.1,
+                        range: 0...24,
+                        minimumFractionDigits: 1,
+                        maximumFractionDigits: 2
+                    )
+                    .demoID("textfieldstepper.voltage")
+
+                    TextFieldStepper(
+                        value: $retryInterval,
+                        unit: "ms",
+                        label: "Retry Interval",
+                        step: 25,
+                        range: 50...2_000,
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0
+                    )
+                    .demoID("textfieldstepper.interval")
+                }
+                .frame(maxWidth: 360)
+                .frame(maxWidth: .infinity, alignment: .center)
+            }
+
+            DemoPanel("Configuration", subtitle: "A reusable configuration can carry repeated styling and numeric behavior.") {
+                VStack(spacing: 14) {
+                    TextFieldStepper(
+                        value: $throttle,
+                        unit: "%",
+                        label: "Throttle Limit",
+                        configuration: compactConfiguration
+                    )
+                    .demoID("textfieldstepper.configured")
+
+                    DemoMetric(title: "Temperature", value: cabinTemperature.formatted(.number.precision(.fractionLength(1))) + unitSpace + "°C")
+                    DemoMetric(title: "Voltage", value: batteryVoltage.formatted(.number.precision(.fractionLength(1...2))) + unitSpace + "V")
+                    DemoMetric(title: "Retry", value: retryInterval.formatted(.number.precision(.fractionLength(0))) + unitSpace + "ms")
+                    DemoMetric(title: "Throttle", value: throttle.formatted(.number.precision(.fractionLength(0))) + unitSpace + "%")
+                }
+            }
+        }
+    }
+}
+
 struct BusyButtonsDemoView: View {
     @State private var classicBusy = false
     @State private var modernBusy = false

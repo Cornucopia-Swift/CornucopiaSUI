@@ -30,7 +30,7 @@ enum DemoSection: String, CaseIterable, Identifiable {
             case .inputs:
                 [.hexKeyboard, .vinKeyboard, .networkKeyboards, .textFields]
             case .controls:
-                [.busyButtons, .dialogs]
+                [.textFieldStepper, .busyButtons, .dialogs]
             case .textAndMotion:
                 [.marquee, .blending]
             case .modifiers:
@@ -46,6 +46,7 @@ enum DemoItem: String, CaseIterable, Identifiable, Hashable {
     case vinKeyboard
     case networkKeyboards
     case textFields
+    case textFieldStepper
     case busyButtons
     case dialogs
     case marquee
@@ -62,6 +63,7 @@ enum DemoItem: String, CaseIterable, Identifiable, Hashable {
             case .vinKeyboard: "VIN Keyboard"
             case .networkKeyboards: "Network Keyboards"
             case .textFields: "Validated Text Fields"
+            case .textFieldStepper: "Text Field Stepper"
             case .busyButtons: "Busy Buttons"
             case .dialogs: "Dialogs & Capsules"
             case .marquee: "Marquee"
@@ -78,6 +80,7 @@ enum DemoItem: String, CaseIterable, Identifiable, Hashable {
             case .vinKeyboard: "VIN slot input, validation, layout switching and decoder path."
             case .networkKeyboards: "IPv4 and MAC slot input with domain-gated keys."
             case .textFields: "Styled, network-aware and VIN-aware text entry."
+            case .textFieldStepper: "Editable numeric stepper with range clamping and press-and-hold controls."
             case .busyButtons: "Async actions, indicators and confirmation flows."
             case .dialogs: "Custom confirmation dialog and transient notification capsule."
             case .marquee: "Single-line overflow labels and ticker content."
@@ -94,6 +97,7 @@ enum DemoItem: String, CaseIterable, Identifiable, Hashable {
             case .vinKeyboard: "car"
             case .networkKeyboards: "network"
             case .textFields: "text.cursor"
+            case .textFieldStepper: "plusminus.circle"
             case .busyButtons: "button.programmable"
             case .dialogs: "bubble.left.and.exclamationmark.bubble.right"
             case .marquee: "text.alignleft"
@@ -110,6 +114,7 @@ enum DemoItem: String, CaseIterable, Identifiable, Hashable {
             case .vinKeyboard: .green
             case .networkKeyboards: .teal
             case .textFields: .indigo
+            case .textFieldStepper: .blue
             case .busyButtons: .orange
             case .dialogs: .red
             case .marquee: .cyan
@@ -131,6 +136,8 @@ enum DemoItem: String, CaseIterable, Identifiable, Hashable {
                 NetworkKeyboardDemoView()
             case .textFields:
                 TextFieldsDemoView()
+            case .textFieldStepper:
+                TextFieldStepperDemoView()
             case .busyButtons:
                 BusyButtonsDemoView()
             case .dialogs:
