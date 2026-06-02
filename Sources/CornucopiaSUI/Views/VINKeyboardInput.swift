@@ -382,18 +382,25 @@ public struct VINKeyboardInput: View {
         }
     }
 
+    /// The keyboard and the camera live on opposite faces of a single card that flips
+    /// about its vertical axis. Both faces stay mounted and the height is pinned, so the
+    /// swap never inserts, removes, or re-lays-out a view — only the rotation and the
+    /// mid-flip back-face cull animate. Keeping the rotation a persistent modifier rather
+    /// than a `.transition` also means the live camera's transform is never torn down at
+    /// the end of the animation, which previously snapped the preview into place.
     private var keypad: some View {
-        ZStack {
-            if isScanningVIN {
-                scannerPane
-                    .transition(.scannerCameraFlip)
-            } else {
-                keypadKeys
-                    .transition(.scannerKeyboardFlip)
-            }
-        }
-        .animation(.easeInOut(duration: 0.34), value: isScanningVIN)
+        KeypadFlipCard(
+            flipProgress: isScanningVIN ? 1 : 0,
+            front: keypadKeys,
+            back: scannerPane
+        )
+        .frame(height: Self.keypadFlipHeight)
+        .animation(.easeInOut(duration: 0.42), value: isScanningVIN)
     }
+
+    /// Height shared by both faces. Matches the keypad's intrinsic height (five 42-pt key
+    /// rows plus four 6-pt gaps) so the card never resizes as it flips.
+    private static let keypadFlipHeight: CGFloat = 234
 
     private var keypadKeys: some View {
         VStack(spacing: 6) {
@@ -418,6 +425,10 @@ public struct VINKeyboardInput: View {
 
     private var scannerPane: some View {
         ZStack(alignment: .topTrailing) {
+            // Solid backing so the back face reads as a deliberate dark panel before the
+            // camera delivers its first frames and while it flips away after a scan.
+            Color.black
+
             scannerPreview
 
             Button {
@@ -432,8 +443,7 @@ public struct VINKeyboardInput: View {
             .padding(8)
             .accessibilityLabel("Stop VIN scan")
         }
-        .frame(maxWidth: .infinity)
-        .frame(height: 234)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -441,21 +451,28 @@ public struct VINKeyboardInput: View {
         }
     }
 
+    /// The camera face is always part of the flip card, but the capture session must run
+    /// only while it is actually shown — so the scanner is mounted strictly while
+    /// `isScanningVIN`, leaving just the dark backing behind the hidden face otherwise.
     @ViewBuilder
     private var scannerPreview: some View {
 #if canImport(VisionKit) && os(iOS)
         if #available(iOS 16.0, *) {
-            VINScannerView { vin in
-                acceptScannedVIN(vin)
+            if isScanningVIN {
+                VINScannerView { vin in
+                    acceptScannedVIN(vin)
+                }
+                .overlay(alignment: .bottomLeading) {
+                    scannerCaption
+                }
             }
-            .overlay(alignment: .bottomLeading) {
-                scannerCaption
-            }
-        } else {
+        } else if isScanningVIN {
             scannerUnavailable
         }
 #else
-        scannerUnavailable
+        if isScanningVIN {
+            scannerUnavailable
+        }
 #endif
     }
 
@@ -784,27 +801,21 @@ public struct VINKeyboardInput: View {
     private func submit() {
         guard canSubmit else { return }
         onSubmit?()
-        withAnimation(.easeInOut(duration: 0.34)) {
-            isScanningVIN = false
-        }
+        isScanningVIN = false
         isInputFocused = false
         focusedBinding?.wrappedValue = false
         feedback()
     }
 
     private func startScanning() {
-        withAnimation(.easeInOut(duration: 0.34)) {
-            isScanningVIN = true
-        }
+        isScanningVIN = true
         isInputFocused = false
         focusedBinding?.wrappedValue = false
         feedback()
     }
 
     private func stopScanning() {
-        withAnimation(.easeInOut(duration: 0.34)) {
-            isScanningVIN = false
-        }
+        isScanningVIN = false
         requestFocus()
         feedback()
     }
@@ -812,9 +823,7 @@ public struct VINKeyboardInput: View {
     private func acceptScannedVIN(_ vin: String) {
         text.wrappedValue = vin
         updateValidationState()
-        withAnimation(.easeInOut(duration: 0.34)) {
-            isScanningVIN = false
-        }
+        isScanningVIN = false
         requestFocus()
         scanSuccessFeedback()
     }
@@ -934,47 +943,45 @@ private final class VINKeyboardFeedbackPerformer {
 }
 #endif
 
-private struct ScannerFlipTransitionModifier: ViewModifier {
+/// A card whose two faces share the same footprint and flip about the vertical axis.
+///
+/// `flipProgress` runs `0` (front) → `1` (back); conforming to `Animatable` on it makes
+/// SwiftUI re-evaluate the body at every interpolated step, so the back-face cull lands
+/// exactly at the geometric midpoint (90°) and only one face is ever visible — no
+/// ghosting of one face through the other. The rotation is a persistent modifier rather
+/// than a transition, so neither face's layer is added or torn down mid-flip; a live
+/// camera hosted on the back face therefore settles without the projection snapping off
+/// when the animation ends.
+private struct KeypadFlipCard<Front: View, Back: View>: View, Animatable {
 
-    let angle: Double
+    var flipProgress: Double
+    let front: Front
+    let back: Back
 
-    func body(content: Content) -> some View {
-        content
-            .opacity(abs(angle) >= 89 ? 0.08 : 1)
-            .rotation3DEffect(
-                .degrees(angle),
-                axis: (x: 0, y: 1, z: 0),
-                perspective: 0.72
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-    }
-}
-
-private extension AnyTransition {
-
-    static var scannerCameraFlip: AnyTransition {
-        .asymmetric(
-            insertion: .modifier(
-                active: ScannerFlipTransitionModifier(angle: 90),
-                identity: ScannerFlipTransitionModifier(angle: 0)
-            ),
-            removal: .modifier(
-                active: ScannerFlipTransitionModifier(angle: 90),
-                identity: ScannerFlipTransitionModifier(angle: 0)
-            )
-        )
+    var animatableData: Double {
+        get { flipProgress }
+        set { flipProgress = newValue }
     }
 
-    static var scannerKeyboardFlip: AnyTransition {
-        .asymmetric(
-            insertion: .modifier(
-                active: ScannerFlipTransitionModifier(angle: -90),
-                identity: ScannerFlipTransitionModifier(angle: 0)
-            ),
-            removal: .modifier(
-                active: ScannerFlipTransitionModifier(angle: -90),
-                identity: ScannerFlipTransitionModifier(angle: 0)
-            )
+    private var angle: Double { flipProgress * 180 }
+    private var showsBack: Bool { angle >= 90 }
+
+    var body: some View {
+        ZStack {
+            front
+                .opacity(showsBack ? 0 : 1)
+                .accessibilityHidden(showsBack)
+
+            // Pre-rotated a half turn so it reads upright once the card lands at 180°.
+            back
+                .rotation3DEffect(.degrees(180), axis: (x: 0, y: 1, z: 0))
+                .opacity(showsBack ? 1 : 0)
+                .accessibilityHidden(!showsBack)
+        }
+        .rotation3DEffect(
+            .degrees(angle),
+            axis: (x: 0, y: 1, z: 0),
+            perspective: 0.6
         )
     }
 }
