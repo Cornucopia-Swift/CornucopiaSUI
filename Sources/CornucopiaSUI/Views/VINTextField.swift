@@ -11,6 +11,16 @@ func isValidVINCharacter(_ char: Character) -> Bool {
     return VIN.AllowedCharacters.contains(scalar)
 }
 
+/// Whether a VIN's 9th position is a mandatory ISO 3779 check digit.
+///
+/// Thin SwiftUI-facing adapter over `VIN.requiresCheckDigit`: only North American VINs
+/// carry a mandatory check digit, so input controls must not require a digit/`X` at
+/// position 9 — nor flag it — for VINs from other regions (e.g. the `Z` filler in VW
+/// VINs). The region classification itself lives in the `VIN` package.
+func vinRequiresCheckDigit(_ vin: String) -> Bool {
+    VIN(content: vin).requiresCheckDigit
+}
+
 /// Validates VIN length and characters, producing a UI-oriented validation state.
 ///
 /// A complete VIN with a mismatching check digit is reported as

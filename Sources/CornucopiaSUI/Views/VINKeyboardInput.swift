@@ -302,7 +302,7 @@ public struct VINKeyboardInput: View {
     }
 
     private func activeMarkerColor(at index: Int) -> Color {
-        index == 8 ? .orange : .accentColor
+        (index == 8 && enforcesCheckDigit) ? .orange : .accentColor
     }
 
     /// Semantic group color for a slot position (WMI / VDS / VIS).
@@ -680,12 +680,12 @@ public struct VINKeyboardInput: View {
         }
     }
 
-    /// At each position only the characters valid there stay enabled. The check-digit
-    /// position (9th) accepts digits and `X` only, so letters other than `X` are
-    /// disabled. A full VIN disables every key.
+    /// At each position only the characters valid there stay enabled. For North American
+    /// VINs the 9th position is a check digit and accepts digits and `X` only; a full VIN
+    /// disables every key.
     private func isKeyEnabled(_ key: String) -> Bool {
         guard text.wrappedValue.count < 17 else { return false }
-        guard isCheckDigitPosition else { return true }
+        guard isCheckDigitPosition, enforcesCheckDigit else { return true }
         return key == "X" || key.allSatisfy(\.isNumber)
     }
 
@@ -758,7 +758,7 @@ public struct VINKeyboardInput: View {
     }
 
     private func keyRole(for key: String) -> VINKeyboardKeyRole {
-        if isCheckDigitPosition && (key == "X" || key.allSatisfy(\.isNumber)) {
+        if isCheckDigitPosition && enforcesCheckDigit && (key == "X" || key.allSatisfy(\.isNumber)) {
             return .checkDigit
         }
 
@@ -767,6 +767,13 @@ public struct VINKeyboardInput: View {
 
     private var isCheckDigitPosition: Bool {
         text.wrappedValue.count == 8
+    }
+
+    /// Whether the 9th position should be gated and flagged as a check digit. True only
+    /// for North American VINs; elsewhere that position holds free-form characters (e.g.
+    /// the `Z` filler in VW VINs), which the keypad must not block.
+    private var enforcesCheckDigit: Bool {
+        vinRequiresCheckDigit(text.wrappedValue)
     }
 
     private var canSubmit: Bool {
