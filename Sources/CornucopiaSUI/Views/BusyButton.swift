@@ -9,48 +9,54 @@ public struct BusyButton: View {
     public typealias ActionFunc = () async throws -> ()
 
     @Binding var isBusy: Bool
-    @State private var title: String
-    @State private var action: ActionFunc
+    let title: String
+    let options: BusyButtonOptions
+    let action: ActionFunc
 
     public var body: some View {
-
-        ZStack {
-
-            if self.isBusy {
-                button
-                    .clipShape(Circle())
-            } else {
-                button
-            }
-
-            ProgressView()
-                .opacity(isBusy ? 1 : 0)
-                .saturation(-1)
-        }
-        .animation(.easeInOut, value: isBusy)
+        GenericBusyButton(
+            title,
+            isBusy: $isBusy,
+            options: options,
+            action: action
+        )
     }
 
-    public var button: some View {
-        Button(action: {
-            guard !isBusy else { return }
-            withAnimation {
-                self.isBusy = true
-            }
-            Task {
-                defer { DispatchQueue.main.async { self.isBusy = false} }
-                try await self.action()
-            }
-        }) {
-            Text(title)
-                .opacity(isBusy ? 0 : 1)
-        }
-        .allowsHitTesting(!isBusy)
+    public init(
+        isBusy: Binding<Bool>,
+        title: String,
+        indicatorStyle: BusyIndicatorStyle = .classic,
+        onError: ((Error) -> Void)? = nil,
+        action: @escaping ActionFunc
+    ) {
+        self.init(
+            isBusy: isBusy,
+            title: title,
+            options: BusyButtonOptions(indicatorStyle: indicatorStyle, onError: onError),
+            action: action
+        )
     }
 
-    public init(isBusy: Binding<Bool>, title: String, action: @escaping ActionFunc) {
+    public init(
+        isBusy: Binding<Bool>,
+        title: String,
+        options: BusyButtonOptions,
+        action: @escaping ActionFunc
+    ) {
         self._isBusy = isBusy
         self.title = title
+        self.options = options
         self.action = action
+    }
+
+    @available(*, deprecated, message: "Use body or GenericBusyButton instead.")
+    public var button: some View {
+        GenericBusyButton(
+            title,
+            isBusy: $isBusy,
+            options: options,
+            action: action
+        )
     }
 }
 

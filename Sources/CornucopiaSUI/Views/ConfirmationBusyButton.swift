@@ -15,56 +15,48 @@ public struct ConfirmationBusyButton<Label: View>: View {
     let confirmationMessage: String
     let confirmButtonTitle: String
     let confirmButtonRole: ButtonRole?
-    let indicatorStyle: BusyIndicatorStyle
+    let options: BusyButtonOptions
     let action: ActionFunc
     let label: () -> Label
+
+    @State private var task: Task<Void, Never>?
 
     public var body: some View {
         Button {
             guard !isBusy else { return }
             showConfirmation = true
         } label: {
-            ZStack {
-                label()
-                    .opacity(isBusy ? 0 : 1)
-
-                if isBusy {
-                    switch indicatorStyle {
-                    case .classic:
-                        ProgressView()
-                            .scaleEffect(0.8)
-                            .progressViewStyle(CircularProgressViewStyle())
-                    case .modern:
-                        ModernBusyIndicator()
-                    case .pulse:
-                        PulseBusyIndicator()
-                    case .orbit:
-                        OrbitBusyIndicator()
+            label()
+                .opacity(isBusy ? 0 : 1)
+                .accessibilityHidden(isBusy)
+                .overlay {
+                    if isBusy {
+                        BusyIndicator(style: options.indicatorStyle)
+                            .accessibilityLabel("Busy")
                     }
+                }
+        }
+        .disabled(isBusy)
+        .animation(options.animation, value: isBusy)
+        .clipShape(options.shrinkToCircle && isBusy ? AnyShape(Circle()) : AnyShape(Rectangle()))
+        .accessibilityValue(isBusy ? Text("Busy") : Text(""))
+        .onDisappear {
+            guard options.cancelTaskOnDisappear else { return }
+            task?.cancel()
+            task = nil
+            if isBusy {
+                withAnimation(options.animation) {
+                    isBusy = false
                 }
             }
         }
-        .allowsHitTesting(!isBusy)
-        .animation(.easeInOut(duration: 0.3), value: isBusy)
 #if os(iOS)
         .CC_confirmationDialog(
             confirmationTitle,
             isPresented: $showConfirmation,
             actions: [
                 ConfirmationDialogAction(confirmButtonTitle, role: confirmButtonRole) {
-                    withAnimation {
-                        isBusy = true
-                    }
-                    Task {
-                        defer {
-                            DispatchQueue.main.async {
-                                withAnimation {
-                                    isBusy = false
-                                }
-                            }
-                        }
-                        try await action()
-                    }
+                    runConfirmedAction()
                 }
             ],
             message: confirmationMessage
@@ -76,19 +68,7 @@ public struct ConfirmationBusyButton<Label: View>: View {
             titleVisibility: .visible
         ) {
             Button(confirmButtonTitle, role: confirmButtonRole) {
-                withAnimation {
-                    isBusy = true
-                }
-                Task {
-                    defer {
-                        DispatchQueue.main.async {
-                            withAnimation {
-                                isBusy = false
-                            }
-                        }
-                    }
-                    try await action()
-                }
+                runConfirmedAction()
             }
         } message: {
             Text(confirmationMessage)
@@ -102,7 +82,9 @@ public struct ConfirmationBusyButton<Label: View>: View {
         confirmationMessage: String,
         confirmButtonTitle: String,
         confirmButtonRole: ButtonRole? = nil,
+        shrinkToCircle: Bool = false,
         indicatorStyle: BusyIndicatorStyle = .modern,
+        onError: ((Error) -> Void)? = nil,
         action: @escaping ActionFunc,
         @ViewBuilder label: @escaping () -> Label
     ) {
@@ -111,9 +93,58 @@ public struct ConfirmationBusyButton<Label: View>: View {
         self.confirmationMessage = confirmationMessage
         self.confirmButtonTitle = confirmButtonTitle
         self.confirmButtonRole = confirmButtonRole
-        self.indicatorStyle = indicatorStyle
+        self.options = BusyButtonOptions(
+            shrinkToCircle: shrinkToCircle,
+            indicatorStyle: indicatorStyle,
+            onError: onError
+        )
         self.action = action
         self.label = label
+    }
+
+    public init(
+        isBusy: Binding<Bool>,
+        confirmationTitle: String,
+        confirmationMessage: String,
+        confirmButtonTitle: String,
+        confirmButtonRole: ButtonRole? = nil,
+        options: BusyButtonOptions,
+        action: @escaping ActionFunc,
+        @ViewBuilder label: @escaping () -> Label
+    ) {
+        self._isBusy = isBusy
+        self.confirmationTitle = confirmationTitle
+        self.confirmationMessage = confirmationMessage
+        self.confirmButtonTitle = confirmButtonTitle
+        self.confirmButtonRole = confirmButtonRole
+        self.options = options
+        self.action = action
+        self.label = label
+    }
+
+    private func runConfirmedAction() {
+        guard !isBusy, task == nil else { return }
+        withAnimation(options.animation) {
+            isBusy = true
+        }
+
+        task = Task {
+            do {
+                try await action()
+            } catch is CancellationError {
+            } catch {
+                await MainActor.run {
+                    options.onError?(error)
+                }
+            }
+
+            await MainActor.run {
+                withAnimation(options.animation) {
+                    isBusy = false
+                }
+                task = nil
+            }
+        }
     }
 }
 
@@ -126,7 +157,9 @@ public extension ConfirmationBusyButton where Label == Text {
         confirmationMessage: String,
         confirmButtonTitle: String,
         confirmButtonRole: ButtonRole? = nil,
+        shrinkToCircle: Bool = false,
         indicatorStyle: BusyIndicatorStyle = .modern,
+        onError: ((Error) -> Void)? = nil,
         action: @escaping ActionFunc
     ) {
         self.init(
@@ -135,7 +168,32 @@ public extension ConfirmationBusyButton where Label == Text {
             confirmationMessage: confirmationMessage,
             confirmButtonTitle: confirmButtonTitle,
             confirmButtonRole: confirmButtonRole,
+            shrinkToCircle: shrinkToCircle,
             indicatorStyle: indicatorStyle,
+            onError: onError,
+            action: action
+        ) {
+            Text(title)
+        }
+    }
+
+    init(
+        _ title: String,
+        isBusy: Binding<Bool>,
+        confirmationTitle: String,
+        confirmationMessage: String,
+        confirmButtonTitle: String,
+        confirmButtonRole: ButtonRole? = nil,
+        options: BusyButtonOptions,
+        action: @escaping ActionFunc
+    ) {
+        self.init(
+            isBusy: isBusy,
+            confirmationTitle: confirmationTitle,
+            confirmationMessage: confirmationMessage,
+            confirmButtonTitle: confirmButtonTitle,
+            confirmButtonRole: confirmButtonRole,
+            options: options,
             action: action
         ) {
             Text(title)
