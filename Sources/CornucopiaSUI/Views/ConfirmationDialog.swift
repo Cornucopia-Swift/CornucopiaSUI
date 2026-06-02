@@ -236,10 +236,6 @@ struct ConfirmationDialogView: View {
         #endif
     }
 
-    private var sheetBaseColor: Color {
-        background.sheetBackgroundColor ?? Color.clear
-    }
-
     private var dialogMaxWidth: CGFloat {
         #if os(iOS)
         return UIDevice.current.userInterfaceIdiom == .pad ? 520 : .infinity
@@ -250,32 +246,7 @@ struct ConfirmationDialogView: View {
 
     @ViewBuilder
     private var sheetBackground: some View {
-        if background.style == .system, background.sheetBackgroundColor != nil {
-            sheetBaseColor
-                .overlay(
-                    LinearGradient(
-                        gradient: Gradient(colors: [
-                            Color.accentColor.opacity(colorScheme == .dark ? 0.32 : 0.14),
-                            Color.accentColor.opacity(colorScheme == .dark ? 0.12 : 0.05),
-                            Color.clear
-                        ]),
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                .overlay(
-                    LinearGradient(
-                        gradient: Gradient(colors: [
-                            Color.black.opacity(colorScheme == .dark ? 0.45 : 0.06),
-                            Color.clear
-                        ]),
-                        startPoint: .bottom,
-                        endPoint: .top
-                    )
-                )
-        } else {
-            sheetBaseColor
-        }
+        Color.clear
     }
 
     private var separatorBand: some View {
