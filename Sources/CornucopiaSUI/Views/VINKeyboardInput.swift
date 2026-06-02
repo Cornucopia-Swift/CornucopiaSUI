@@ -959,7 +959,7 @@ private extension AnyTransition {
                 identity: ScannerFlipTransitionModifier(angle: 0)
             ),
             removal: .modifier(
-                active: ScannerFlipTransitionModifier(angle: -90),
+                active: ScannerFlipTransitionModifier(angle: 90),
                 identity: ScannerFlipTransitionModifier(angle: 0)
             )
         )
@@ -972,7 +972,7 @@ private extension AnyTransition {
                 identity: ScannerFlipTransitionModifier(angle: 0)
             ),
             removal: .modifier(
-                active: ScannerFlipTransitionModifier(angle: 90),
+                active: ScannerFlipTransitionModifier(angle: -90),
                 identity: ScannerFlipTransitionModifier(angle: 0)
             )
         )
