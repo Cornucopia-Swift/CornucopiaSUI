@@ -4,6 +4,7 @@
 //
 
 import CornucopiaSUI
+import SFSafeSymbols
 import SwiftUI
 
 struct BusyButtonsDemoView: View {
@@ -94,16 +95,77 @@ struct DialogsDemoView: View {
     @State private var showDialog = false
     @State private var showCustomDialog = false
     @State private var result = "No action yet"
+    @State private var toastPreset: ToastPreset = .copied
+    @State private var toastPosition: NotificationCapsulePosition = .top
+    @State private var toastBackground: NotificationCapsuleBackground = .default
+    @State private var useCustomColors = false
+    @State private var toastTitleColor = Color.primary
+    @State private var toastSubtitleColor = Color.secondary
+    @State private var toastIconColor = Color.accentColor
 
     var body: some View {
         DemoScroll {
-            DemoPanel("NotificationCapsule", subtitle: "Transient overlay messages for success, warning, error and activity states.") {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 10)], spacing: 10) {
-                    capsuleButton("Info", style: .info)
-                    capsuleButton("Success", style: .success)
-                    capsuleButton("Warning", style: .warning)
-                    capsuleButton("Error", style: .error)
-                    capsuleButton("Activity", style: .activity, duration: 5)
+            DemoPanel("NotificationCapsule", subtitle: "Drops-inspired transient HUDs with title, subtitle, queueing, actions, positions and glass backgrounds.") {
+                VStack(alignment: .leading, spacing: 12) {
+                    Picker("Preset", selection: $toastPreset) {
+                        ForEach(ToastPreset.allCases) { preset in
+                            Text(preset.title).tag(preset)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .demoID("toast.preset")
+
+                    Picker("Position", selection: $toastPosition) {
+                        Text("Top").tag(NotificationCapsulePosition.top)
+                        Text("Bottom").tag(NotificationCapsulePosition.bottom)
+                    }
+                    .pickerStyle(.segmented)
+                    .demoID("toast.position")
+
+                    Picker("Background", selection: $toastBackground) {
+                        Text("Default").tag(NotificationCapsuleBackground.default)
+                        Text("Standard").tag(NotificationCapsuleBackground.standard)
+                        Text("Glass").tag(NotificationCapsuleBackground.glass)
+                    }
+                    .pickerStyle(.segmented)
+                    .demoID("toast.background")
+
+                    Toggle("Custom colors", isOn: $useCustomColors)
+                        .demoID("toast.colors.toggle")
+
+                    if useCustomColors {
+                        VStack(alignment: .leading, spacing: 8) {
+                            ColorPicker("Title", selection: $toastTitleColor, supportsOpacity: false)
+                            ColorPicker("Subtitle", selection: $toastSubtitleColor, supportsOpacity: false)
+                            ColorPicker("Icon", selection: $toastIconColor, supportsOpacity: false)
+                        }
+                    }
+
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 126), spacing: 10)], spacing: 10) {
+                        Button("Show") {
+                            capsuleController.show(makeToastMessage())
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .demoID("toast.show")
+
+                        Button("Queue 3") {
+                            queueToastSequence()
+                        }
+                        .buttonStyle(.bordered)
+                        .demoID("toast.queue")
+
+                        Button("Replace") {
+                            capsuleController.show(makeToastMessage(), presentation: .replaceCurrent)
+                        }
+                        .buttonStyle(.bordered)
+                        .demoID("toast.replace")
+
+                        Button("Dismiss All") {
+                            capsuleController.dismissAll()
+                        }
+                        .buttonStyle(.bordered)
+                        .demoID("toast.dismissAll")
+                    }
                 }
             }
 
@@ -150,10 +212,113 @@ struct DialogsDemoView: View {
         }
     }
 
-    private func capsuleButton(_ title: String, style: NotificationCapsuleStyle, duration: TimeInterval? = 2) -> some View {
-        Button(title) {
-            capsuleController.show("\(title) capsule", style: style, duration: duration)
+    private func makeToastMessage(preset: ToastPreset? = nil) -> NotificationCapsuleMessage {
+        let preset = preset ?? toastPreset
+        let action: NotificationCapsuleAction? = if preset.hasAction {
+            NotificationCapsuleAction(icon: .arrowCounterclockwise, accessibilityLabel: "Retry") {
+                result = "Toast action tapped"
+                capsuleController.show(
+                    NotificationCapsuleMessage(
+                        title: "Retry queued",
+                        subtitle: "The action can enqueue follow-up feedback.",
+                        style: .info,
+                        icon: .arrowCounterclockwise,
+                        position: toastPosition,
+                        duration: .recommended
+                    )
+                )
+            }
+        } else {
+            nil
         }
-        .buttonStyle(.bordered)
+
+        return NotificationCapsuleMessage(
+            title: preset.toastTitle,
+            titleColor: useCustomColors ? toastTitleColor : nil,
+            subtitle: preset.subtitle,
+            subtitleColor: useCustomColors ? toastSubtitleColor : nil,
+            style: preset.style,
+            icon: preset.icon,
+            iconColor: useCustomColors ? toastIconColor : nil,
+            background: toastBackground,
+            action: action,
+            position: toastPosition,
+            duration: preset.duration
+        )
+    }
+
+    private func queueToastSequence() {
+        capsuleController.show(makeToastMessage(preset: .copied))
+        capsuleController.show(makeToastMessage(preset: .connected))
+        capsuleController.show(makeToastMessage(preset: .failed))
+    }
+}
+
+private enum ToastPreset: String, CaseIterable, Identifiable {
+    case copied
+    case connected
+    case failed
+    case retry
+    case activity
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+            case .copied: "Copied"
+            case .connected: "Connected"
+            case .failed: "Failed"
+            case .retry: "Retry Action"
+            case .activity: "Activity"
+        }
+    }
+
+    var toastTitle: String {
+        switch self {
+            case .copied: "Copied"
+            case .connected: "Adapter connected"
+            case .failed: "Upload failed"
+            case .retry: "Command failed"
+            case .activity: "Syncing"
+        }
+    }
+
+    var subtitle: String? {
+        switch self {
+            case .copied: "Diagnostic payload copied to pasteboard."
+            case .connected: "OBDLink MX+ is ready for requests."
+            case .failed: "No response before timeout."
+            case .retry: "Tap the action button to enqueue a retry notice."
+            case .activity: "Waiting for the adapter."
+        }
+    }
+
+    var style: NotificationCapsuleStyle {
+        switch self {
+            case .copied, .connected: .success
+            case .failed, .retry: .error
+            case .activity: .activity
+        }
+    }
+
+    var icon: SFSymbol? {
+        switch self {
+            case .copied: .documentOnDocumentFill
+            case .connected: .checkmarkCircleFill
+            case .failed: .xmarkCircleFill
+            case .retry: .exclamationmarkTriangleFill
+            case .activity: nil
+        }
+    }
+
+    var duration: NotificationCapsuleDuration {
+        switch self {
+            case .activity: .persistent
+            default: .recommended
+        }
+    }
+
+    var hasAction: Bool {
+        self == .retry
     }
 }

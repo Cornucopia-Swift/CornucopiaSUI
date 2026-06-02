@@ -16,7 +16,8 @@ Currently demonstrates:
   `VINTextField`.
 - Async controls and overlays: `BusyButton`, `GenericBusyButton`,
   `ConfirmationBusyButton`, `CC_confirmationDialog` and
-  `CC_notificationCapsule`.
+  `CC_notificationCapsule`, including Drops-inspired queueing, actions,
+  top/bottom placement, custom colors and standard/glass backgrounds.
 - Text and motion components: `MarqueeText`, `MarqueeScrollView`,
   `BlendingTextLabel`, `SynchronizedBlendingTextLabel` and
   `SynchronizedBlendingContainer`.

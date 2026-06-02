@@ -76,8 +76,10 @@ leave a visible trace for the user.
 - `BusyButton`, `GenericBusyButton` and `ConfirmationBusyButton`.
 - `CC_busyButton` for turning existing view content into an async busy button.
 - `CC_confirmationDialog` for custom iOS confirmation surfaces.
-- `CC_notificationCapsule` and `NotificationCapsuleController` for transient
-  status, warning, error and activity messages.
+- `CC_notificationCapsule`, `NotificationCapsuleController` and
+  `NotificationCapsuleMessage` for Drops-inspired transient HUDs with queueing,
+  actions, top/bottom placement, standard/glass backgrounds, accessibility
+  announcements and status/warning/error/activity styles.
 - `ObservableBusyness` for debounced busy state.
 
 ### Text, Motion and Status Displays

@@ -55,7 +55,7 @@ The library uses `ObservableObject` pattern for state management:
 - `ObservableBusyness`: Debounced busy state provider implementing `BusynessObserver`
 - `ObservableLocalNetworkAuthorization`: Singleton for network authorization state
 - `ObservableReachability`: Network reachability monitoring
-- `NotificationCapsuleController`: Transient notification capsule with styles (info/success/warning/error/activity)
+- `NotificationCapsuleController`: Drops-inspired transient notification HUDs with queueing/replacement, title/subtitle payloads, actions, top/bottom placement, standard/glass backgrounds, accessibility announcements, and styles (info/success/warning/error/activity)
 
 #### View Modifier Pattern
 Custom view modifiers follow the pattern of creating a struct conforming to `ViewModifier` with a corresponding extension method prefixed with `CC_`:

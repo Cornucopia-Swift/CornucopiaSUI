@@ -6,80 +6,234 @@ import SFSafeSymbols
 
 struct NotificationCapsule: View {
     let item: NotificationCapsuleController.Item
+    let dismiss: () -> Void
+
     @Environment(\.colorScheme) private var colorScheme
+    @State private var dragOffset: CGFloat = 0
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: stackSpacing) {
             iconView
-            Text(item.message)
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .foregroundStyle(.primary)
-                .lineLimit(2)
-                .multilineTextAlignment(.leading)
+                .frame(width: 25, height: 25)
+                .opacity(iconSymbol == nil && item.message.style != .activity ? 0 : 1)
+
+            VStack(spacing: -1) {
+                Text(item.message.title)
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(item.message.titleColor ?? .primary)
+                    .lineLimit(item.message.titleNumberOfLines)
+                    .multilineTextAlignment(.center)
+                    .minimumScaleFactor(0.82)
+
+                if let subtitle = item.message.subtitle {
+                    Text(subtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(item.message.subtitleColor ?? .secondary)
+                        .lineLimit(item.message.subtitleNumberOfLines)
+                        .multilineTextAlignment(.center)
+                        .minimumScaleFactor(0.82)
+                }
+            }
+
+            actionView
+                .frame(width: 35, height: 35)
+                .opacity(item.message.action?.icon == nil ? 0 : 1)
         }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 10)
+        .padding(contentInsets)
         .frame(maxWidth: 380)
-        .background {
-            Capsule(style: .continuous)
-                .fill(.ultraThinMaterial)
-                .overlay {
-                    Capsule(style: .continuous)
-                        .fill(tintColor.opacity(colorScheme == .dark ? 0.12 : 0.13))
-                }
-                .overlay {
-                    Capsule(style: .continuous)
-                        .strokeBorder(
-                            LinearGradient(
-                                colors: [
-                                    Color.white.opacity(colorScheme == .dark ? 0.18 : 0.5),
-                                    Color.black.opacity(colorScheme == .dark ? 0.2 : 0.06)
-                                ],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            ),
-                            lineWidth: 0.5
-                        )
-                }
+        .notificationCapsuleBackground(item.message.background, tint: tintColor, colorScheme: colorScheme)
+        .shadow(color: .black.opacity(colorScheme == .dark ? 0.38 : 0.15), radius: 25)
+        .offset(y: dragOffset)
+        .gesture(dismissDragGesture)
+        .contentShape(Capsule(style: .continuous))
+        .onTapGesture {
+            guard let action = item.message.action, action.icon == nil else { return }
+            action.handler()
         }
-        .shadow(color: .black.opacity(colorScheme == .dark ? 0.45 : 0.08), radius: 16, y: 6)
-        .shadow(color: tintColor.opacity(colorScheme == .dark ? 0.2 : 0.15), radius: 20, y: 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(item.message.resolvedAccessibilityMessage)
     }
 
     @ViewBuilder
     private var iconView: some View {
-        switch item.style {
+        switch item.message.style {
             case .activity:
                 ProgressView()
                     .controlSize(.small)
                     .tint(tintColor)
             default:
-                Image(systemSymbol: iconSymbol)
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(tintColor)
-                    .imageScale(.medium)
+                if let iconSymbol {
+                    Image(systemSymbol: iconSymbol)
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(item.message.iconColor ?? tintColor)
+                        .imageScale(.medium)
+                }
         }
     }
 
-    private var iconSymbol: SFSymbol {
-        switch item.style {
-            case .info:     .infoCircleFill
-            case .success:  .checkmarkCircleFill
-            case .warning:  .exclamationmarkTriangleFill
-            case .error:    .xmarkCircleFill
-            case .activity: .circleFill
+    @ViewBuilder
+    private var actionView: some View {
+        if let action = item.message.action, let icon = action.icon {
+            Button {
+                action.handler()
+            } label: {
+                Image(systemSymbol: icon)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 35, height: 35)
+                    .background(tintColor, in: Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(action.accessibilityLabel ?? "Action")
+        }
+    }
+
+    private var dismissDragGesture: some Gesture {
+        DragGesture(minimumDistance: 8)
+            .onChanged { value in
+                let translation = value.translation.height
+                let signedTranslation = item.position == .top ? min(0, translation) : max(0, translation)
+                dragOffset = signedTranslation
+            }
+            .onEnded { value in
+                let translation = value.translation.height
+                let velocity = value.predictedEndTranslation.height
+                let shouldDismiss = switch item.position {
+                    case .top:
+                        translation < -45 || velocity < -90
+                    case .bottom:
+                        translation > 45 || velocity > 90
+                }
+
+                if shouldDismiss {
+                    dismiss()
+                } else {
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
+                        dragOffset = 0
+                    }
+                }
+            }
+    }
+
+    private var contentInsets: EdgeInsets {
+        let hasSubtitle = item.message.subtitle != nil
+        let hasIcon = iconSymbol != nil || item.message.style == .activity
+        let hasActionIcon = item.message.action?.icon != nil
+
+        if !hasIcon && !hasActionIcon {
+            return EdgeInsets(top: hasSubtitle ? 8 : 15, leading: 50, bottom: hasSubtitle ? 8 : 15, trailing: 50)
+        }
+
+        return EdgeInsets(
+            top: hasSubtitle ? 8 : (hasActionIcon ? 10 : 15),
+            leading: hasIcon ? 12 : 40,
+            bottom: hasSubtitle ? 8 : (hasActionIcon ? 10 : 15),
+            trailing: hasActionIcon ? 10 : 40
+        )
+    }
+
+    private var stackSpacing: CGFloat {
+        if iconSymbol != nil, item.message.action?.icon != nil {
+            return 20
+        }
+        return 15
+    }
+
+    private var iconSymbol: SFSymbol? {
+        if let icon = item.message.icon {
+            return icon
+        }
+
+        switch item.message.style {
+            case .info:     return .infoCircleFill
+            case .success:  return .checkmarkCircleFill
+            case .warning:  return .exclamationmarkTriangleFill
+            case .error:    return .xmarkCircleFill
+            case .activity: return nil
         }
     }
 
     private var tintColor: Color {
-        switch item.style {
+        switch item.message.style {
             case .info:     .accentColor
             case .success:  .green
             case .warning:  .orange
             case .error:    .red
             case .activity: .accentColor
         }
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func notificationCapsuleBackground(
+        _ background: NotificationCapsuleBackground,
+        tint: Color,
+        colorScheme: ColorScheme
+    ) -> some View {
+        switch background.resolved {
+            case .glass:
+                if #available(iOS 26.0, macOS 26.0, tvOS 26.0, watchOS 26.0, *) {
+                    self
+                        .background {
+                            Capsule(style: .continuous)
+                                .fill(tint.opacity(colorScheme == .dark ? 0.10 : 0.08))
+                        }
+                        .glassEffect(.regular.tint(tint.opacity(0.08)), in: Capsule(style: .continuous))
+                } else {
+                    materialCapsuleBackground(tint: tint, colorScheme: colorScheme)
+                }
+            case .standard, .default:
+                self
+                    .background {
+                        Capsule(style: .continuous)
+                            .fill(Self.standardBackgroundColor)
+                            .overlay {
+                                Capsule(style: .continuous)
+                                    .fill(tint.opacity(colorScheme == .dark ? 0.08 : 0.06))
+                            }
+                            .overlay {
+                                Capsule(style: .continuous)
+                                    .strokeBorder(Self.borderGradient(colorScheme: colorScheme), lineWidth: 0.5)
+                            }
+                    }
+        }
+    }
+
+    private func materialCapsuleBackground(tint: Color, colorScheme: ColorScheme) -> some View {
+        background {
+            Capsule(style: .continuous)
+                .fill(.ultraThinMaterial)
+                .overlay {
+                    Capsule(style: .continuous)
+                        .fill(tint.opacity(colorScheme == .dark ? 0.12 : 0.10))
+                }
+                .overlay {
+                    Capsule(style: .continuous)
+                        .strokeBorder(Self.borderGradient(colorScheme: colorScheme), lineWidth: 0.5)
+                }
+        }
+    }
+
+    private static var standardBackgroundColor: Color {
+        #if os(iOS) || os(tvOS) || os(visionOS)
+        Color(.secondarySystemBackground)
+        #elseif os(macOS)
+        Color(nsColor: .windowBackgroundColor)
+        #else
+        Color.secondary.opacity(0.18)
+        #endif
+    }
+
+    private static func borderGradient(colorScheme: ColorScheme) -> LinearGradient {
+        LinearGradient(
+            colors: [
+                Color.white.opacity(colorScheme == .dark ? 0.18 : 0.5),
+                Color.black.opacity(colorScheme == .dark ? 0.2 : 0.06)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
     }
 }
 
@@ -157,7 +311,7 @@ struct NotificationCapsule: View {
 
         private func button(_ message: String, style: NotificationCapsuleStyle, icon: SFSymbol) -> some View {
             Button {
-                controller.show(message, style: style)
+                controller.show(NotificationCapsuleMessage(title: message, style: style, icon: icon))
             } label: {
                 Label(message, systemSymbol: icon)
             }
