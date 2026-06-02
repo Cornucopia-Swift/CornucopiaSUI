@@ -32,6 +32,8 @@ public struct VINKeyboardInput: View {
     @State private var isDecodingVehicle = false
     @State private var isScanningVIN = false
     @State private var isScannerLensAnimating = false
+    @State private var isScannerLensWhirlVisible = false
+    @State private var scannerRevealProgress: CGFloat = 1
 #if canImport(UIKit)
     @State private var feedbackPerformer = VINKeyboardFeedbackPerformer()
 #endif
@@ -418,8 +420,14 @@ public struct VINKeyboardInput: View {
     private var scannerPane: some View {
         ZStack(alignment: .topTrailing) {
             scannerPreview
+                .mask {
+                    ScannerLensRevealMask(progress: scannerRevealProgress)
+                }
                 .overlay {
-                    scannerLensWhirl
+                    if isScannerLensWhirlVisible {
+                        scannerLensWhirl
+                            .transition(.opacity.combined(with: .scale(scale: 0.82)))
+                    }
                 }
 
             Button {
@@ -443,13 +451,27 @@ public struct VINKeyboardInput: View {
         }
         .transition(.scannerLens)
         .onAppear {
+            scannerRevealProgress = 0
+            isScannerLensWhirlVisible = true
             isScannerLensAnimating = false
-            withAnimation(.easeInOut(duration: 0.95).repeatForever(autoreverses: false)) {
+            withAnimation(.spring(response: 0.54, dampingFraction: 0.84)) {
+                scannerRevealProgress = 1
+            }
+            withAnimation(.easeInOut(duration: 0.85).repeatForever(autoreverses: false)) {
                 isScannerLensAnimating = true
+            }
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 620_000_000)
+                guard isScanningVIN else { return }
+                withAnimation(.easeOut(duration: 0.16)) {
+                    isScannerLensWhirlVisible = false
+                }
             }
         }
         .onDisappear {
             isScannerLensAnimating = false
+            isScannerLensWhirlVisible = false
+            scannerRevealProgress = 1
         }
     }
 
@@ -974,6 +996,32 @@ private struct ScannerLensTransitionModifier: ViewModifier {
             .rotationEffect(.degrees(isActive ? -18 : 0))
             .offset(y: isActive ? 92 : 0)
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+}
+
+private struct ScannerLensRevealMask: Shape {
+
+    var progress: CGFloat
+
+    var animatableData: CGFloat {
+        get { progress }
+        set { progress = newValue }
+    }
+
+    func path(in rect: CGRect) -> Path {
+        let clampedProgress = min(max(progress, 0), 1)
+        guard clampedProgress < 0.995 else {
+            return RoundedRectangle(cornerRadius: 8, style: .continuous).path(in: rect)
+        }
+
+        let startingDiameter: CGFloat = 76
+        let endingDiameter = hypot(rect.width, rect.height) * 1.12
+        let diameter = startingDiameter + (endingDiameter - startingDiameter) * clampedProgress
+        let origin = CGPoint(
+            x: rect.midX - diameter / 2,
+            y: rect.midY - diameter / 2
+        )
+        return Circle().path(in: CGRect(origin: origin, size: CGSize(width: diameter, height: diameter)))
     }
 }
 
