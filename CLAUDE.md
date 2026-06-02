@@ -61,6 +61,7 @@ The library uses `ObservableObject` pattern for state management:
 Custom view modifiers follow the pattern of creating a struct conforming to `ViewModifier` with a corresponding extension method prefixed with `CC_`:
 - Example: `PersistentTaskModifier` with `.CC_task()` extension method
 - Example: `NotificationCapsuleModifier` with `.CC_notificationCapsule()` extension method
+- `CC_confirmationDialog` uses a custom iOS bottom confirmation surface with standard and glass looks; keep the old background configuration compatible when changing it.
 
 #### Navigation System
 `NavigationController` provides centralized navigation management:

@@ -93,6 +93,8 @@ struct BusyButtonsDemoView: View {
 struct DialogsDemoView: View {
     @StateObject private var capsuleController = NotificationCapsuleController()
     @State private var showDialog = false
+    @State private var showStandardDialog = false
+    @State private var showGlassDialog = false
     @State private var showCustomDialog = false
     @State private var result = "No action yet"
     @State private var toastPreset: ToastPreset = .copied
@@ -169,7 +171,7 @@ struct DialogsDemoView: View {
                 }
             }
 
-            DemoPanel("CC_confirmationDialog", subtitle: "iOS bottom confirmation surface with backdrop and role-aware actions.") {
+            DemoPanel("CC_confirmationDialog", subtitle: "Drops-inspired bottom confirmation surface with standard and glass looks.") {
                 VStack(alignment: .leading, spacing: 12) {
                     Button("Show destructive dialog") {
                         showDialog = true
@@ -177,6 +179,20 @@ struct DialogsDemoView: View {
                     .buttonStyle(.borderedProminent)
                     .tint(.red)
                     .demoID("dialog.destructive")
+
+                    HStack {
+                        Button("Standard") {
+                            showStandardDialog = true
+                        }
+                        .buttonStyle(.bordered)
+                        .demoID("dialog.standard")
+
+                        Button("Glass") {
+                            showGlassDialog = true
+                        }
+                        .buttonStyle(.bordered)
+                        .demoID("dialog.glass")
+                    }
 
                     Button("Show custom content dialog") {
                         showCustomDialog = true
@@ -199,6 +215,30 @@ struct DialogsDemoView: View {
                 }
             ],
             message: "Use this for irreversible app actions where the native confirmationDialog styling is not flexible enough."
+        )
+        .CC_confirmationDialog(
+            "Standard Surface",
+            isPresented: $showStandardDialog,
+            background: .init(surfaceStyle: .standard),
+            actions: [
+                ConfirmationDialogAction("Save Snapshot") {
+                    result = "Saved with standard dialog"
+                    capsuleController.show("Standard dialog completed", style: .success)
+                }
+            ],
+            message: "A crisp floating system surface for routine confirmations."
+        )
+        .CC_confirmationDialog(
+            "Glass Surface",
+            isPresented: $showGlassDialog,
+            background: .init(surfaceStyle: .glass),
+            actions: [
+                ConfirmationDialogAction("Connect") {
+                    result = "Connected with glass dialog"
+                    capsuleController.show("Glass dialog completed", style: .success)
+                }
+            ],
+            message: "Uses Liquid Glass on OS 26 and a material fallback on older systems."
         )
         .CC_confirmationDialog("Choose response", isPresented: $showCustomDialog) {
             CC_ConfirmationDialogButton("Accept") {

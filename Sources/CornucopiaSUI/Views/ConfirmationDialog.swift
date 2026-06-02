@@ -55,7 +55,7 @@ struct ConfirmationDialogView: View {
         dialogCard
             .padding(.top, 30)
             .padding(.horizontal, 20)
-            .padding(.bottom, bottomPadding)
+            .padding(.bottom, bottomPadding + 12)
             .background(
                 sheetBackground
                     .ignoresSafeArea()
@@ -64,21 +64,18 @@ struct ConfirmationDialogView: View {
 
     private var dialogCard: some View {
         VStack(spacing: 0) {
-            // Group inner content (header + actions)
             VStack(spacing: 0) {
                 headerSection
                 actionSection
             }
-            // Nudge down by the brand separator height for visual centering
-            .padding(.top, 8)
 
             cancelSeparator
             cancelSection
         }
-        .frame(maxWidth: .infinity)
-        .background(dialogBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.55 : 0.12), radius: 26, y: 0)
+        .frame(maxWidth: dialogMaxWidth)
+        .confirmationDialogSurface(background, tint: .accentColor, colorScheme: colorScheme)
+        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.46 : 0.18), radius: 28, y: 12)
+        .shadow(color: Color.accentColor.opacity(colorScheme == .dark ? 0.12 : 0.08), radius: 24, y: 4)
         .onAppear {
             if actionsContent != nil {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -93,11 +90,11 @@ struct ConfirmationDialogView: View {
         VStack(spacing: 8) {
             if !title.isEmpty {
                 Text(title)
-                    .font(.title3)
-                    .fontWeight(.semibold)
+                    .font(.title3.weight(.bold))
                     .foregroundStyle(.primary)
                     .multilineTextAlignment(.center)
                     .lineLimit(3)
+                    .minimumScaleFactor(0.86)
             }
 
             if let messageContent {
@@ -114,7 +111,8 @@ struct ConfirmationDialogView: View {
             }
         }
         .padding(.horizontal, 20)
-        .padding(.vertical, 20)
+        .padding(.top, 22)
+        .padding(.bottom, 18)
     }
 
     @ViewBuilder
@@ -131,11 +129,10 @@ struct ConfirmationDialogView: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 20)
                 .background(inputFieldBackground)
-                // Outer gap so the rounded field block doesn’t hug the section edges
                 .padding(.horizontal, 16)
+                .padding(.bottom, actions.isEmpty ? 12 : 8)
             }
 
-            // Then show action buttons
             if !actions.isEmpty {
                 ForEach(Array(actions.enumerated()), id: \.offset) { index, action in
                     actionButton(for: action)
@@ -147,7 +144,6 @@ struct ConfirmationDialogView: View {
                 }
             }
         }
-        // Remove extra bottom padding; separator immediately follows
         .padding(.bottom, 0)
     }
 
@@ -169,7 +165,7 @@ struct ConfirmationDialogView: View {
         } label: {
             Text(action.title)
                 .font(.body)
-                .fontWeight(action.role == .destructive ? .medium : .regular)
+                .fontWeight(action.role == .destructive ? .semibold : .regular)
                 .foregroundStyle(buttonTextColor(for: action.role))
                 .lineLimit(2)
                 .frame(minHeight: 56)
@@ -181,21 +177,11 @@ struct ConfirmationDialogView: View {
 
     @ViewBuilder
     private var cancelSeparator: some View {
-        if shouldUseSeamBand {
+        if background.style != .plain {
             Rectangle()
-                .fill(separatorColor)
+                .fill(Color.clear)
                 .frame(height: 8)
-                .overlay(
-                    LinearGradient(
-                        gradient: Gradient(colors: [
-                            Color.black.opacity(colorScheme == .dark ? 0.3 : 0.1),
-                            Color.clear,
-                            Color.black.opacity(colorScheme == .dark ? 0.2 : 0.05)
-                        ]),
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
+                .background(separatorBand)
         } else {
             Divider()
                 .background(separatorColor)
@@ -207,13 +193,12 @@ struct ConfirmationDialogView: View {
         Button {
             dismiss()
         } label: {
-            Text("CANCEL")
+            Text("Cancel")
                 .font(.body)
-                .fontWeight(.medium)
+                .fontWeight(.semibold)
                 .foregroundStyle(.primary)
                 .frame(height: 56)
                 .frame(maxWidth: .infinity)
-                .background(secondaryBackgroundColor)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -241,16 +226,6 @@ struct ConfirmationDialogView: View {
         #endif
     }
 
-    private var secondaryBackgroundColor: Color {
-        #if os(iOS)
-        return Color(UIColor.secondarySystemBackground)
-        #elseif os(tvOS)
-        return colorScheme == .dark ? Color(white: 0.1) : Color(white: 1.0)
-        #else
-        return Color(NSColor.controlBackgroundColor)
-        #endif
-    }
-
     private var separatorColor: Color {
         #if os(iOS)
         return Color(UIColor.separator)
@@ -261,26 +236,21 @@ struct ConfirmationDialogView: View {
         #endif
     }
 
-    private var shouldUseSeamBand: Bool {
-        switch background.style {
-        case .system:
-            return colorScheme != .dark
-        case .plain:
-            return false
-        }
-    }
-
     private var sheetBaseColor: Color {
-        background.sheetBackgroundColor ?? backgroundColor
+        background.sheetBackgroundColor ?? Color.clear
     }
 
-    private var cardBaseColor: Color {
-        background.cardBackgroundColor ?? backgroundColor
+    private var dialogMaxWidth: CGFloat {
+        #if os(iOS)
+        return UIDevice.current.userInterfaceIdiom == .pad ? 520 : .infinity
+        #else
+        return .infinity
+        #endif
     }
 
     @ViewBuilder
     private var sheetBackground: some View {
-        if background.style == .system {
+        if background.style == .system, background.sheetBackgroundColor != nil {
             sheetBaseColor
                 .overlay(
                     LinearGradient(
@@ -308,25 +278,18 @@ struct ConfirmationDialogView: View {
         }
     }
 
-    @ViewBuilder
-    private var dialogBackground: some View {
-        if background.style == .system {
-            ZStack {
-                cardBaseColor
-
-                // Subtle gradient overlay that respects accent color
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        Color.accentColor.opacity(colorScheme == .dark ? 0.03 : 0.02),
-                        Color.clear,
-                        Color.accentColor.opacity(colorScheme == .dark ? 0.05 : 0.03)
-                    ]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            }
-        } else {
-            cardBaseColor
+    private var separatorBand: some View {
+        ZStack {
+            separatorColor.opacity(colorScheme == .dark ? 0.9 : 0.45)
+            LinearGradient(
+                colors: [
+                    Color.black.opacity(colorScheme == .dark ? 0.32 : 0.10),
+                    Color.clear,
+                    Color.white.opacity(colorScheme == .dark ? 0.02 : 0.16)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
         }
     }
 
@@ -375,6 +338,99 @@ struct ConfirmationDialogView: View {
             .animation(.easeInOut(duration: 0.18), value: isInputFocused)
     }
 
+}
+
+private extension View {
+    @ViewBuilder
+    func confirmationDialogSurface(
+        _ background: ConfirmationDialogBackground,
+        tint: Color,
+        colorScheme: ColorScheme
+    ) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 28, style: .continuous)
+
+        switch background.surfaceStyle.resolved {
+            case .glass:
+                if #available(iOS 26.0, *) {
+                    self
+                        .background {
+                            shape
+                                .fill(tint.opacity(colorScheme == .dark ? 0.08 : 0.05))
+                        }
+                        .glassEffect(.regular.tint(tint.opacity(0.06)), in: shape)
+                        .clipShape(shape)
+                } else {
+                    materialConfirmationDialogSurface(background, tint: tint, colorScheme: colorScheme)
+                }
+            case .standard, .default:
+                self
+                    .background {
+                        shape
+                            .fill(Self.confirmationDialogBaseColor(background))
+                            .overlay {
+                                shape.fill(
+                                    LinearGradient(
+                                        colors: [
+                                            Color.white.opacity(colorScheme == .dark ? 0.05 : 0.20),
+                                            Color.clear,
+                                            tint.opacity(colorScheme == .dark ? 0.05 : 0.03)
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                            }
+                            .overlay {
+                                shape.strokeBorder(Self.confirmationDialogBorder(colorScheme: colorScheme), lineWidth: 0.7)
+                            }
+                    }
+                    .clipShape(shape)
+        }
+    }
+
+    private func materialConfirmationDialogSurface(
+        _ background: ConfirmationDialogBackground,
+        tint: Color,
+        colorScheme: ColorScheme
+    ) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 28, style: .continuous)
+
+        return self
+            .background {
+                shape
+                    .fill(.ultraThinMaterial)
+                    .overlay {
+                        shape.fill(tint.opacity(colorScheme == .dark ? 0.09 : 0.06))
+                    }
+                    .overlay {
+                        shape.strokeBorder(Self.confirmationDialogBorder(colorScheme: colorScheme), lineWidth: 0.7)
+                    }
+            }
+            .clipShape(shape)
+    }
+
+    private static func confirmationDialogBaseColor(_ background: ConfirmationDialogBackground) -> Color {
+        if let cardBackgroundColor = background.cardBackgroundColor {
+            return cardBackgroundColor
+        }
+
+        #if os(iOS)
+        return Color(UIColor.secondarySystemBackground)
+        #else
+        return Color.secondary.opacity(0.18)
+        #endif
+    }
+
+    private static func confirmationDialogBorder(colorScheme: ColorScheme) -> LinearGradient {
+        LinearGradient(
+            colors: [
+                Color.white.opacity(colorScheme == .dark ? 0.16 : 0.55),
+                Color.black.opacity(colorScheme == .dark ? 0.26 : 0.08)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+    }
 }
 
 private struct RecessedTextFieldStyle: TextFieldStyle {
@@ -428,27 +484,6 @@ private struct RecessedTextFieldStyle: TextFieldStyle {
 
     private var dropShadow: Color {
         Color.black.opacity(colorScheme == .dark ? 0.6 : 0.12)
-    }
-}
-
-struct ProfessionalButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .background(
-                backgroundColor
-                    .opacity(configuration.isPressed ? 0.5 : 1.0)
-            )
-            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
-    }
-
-    private var backgroundColor: Color {
-        #if os(iOS)
-        return Color(UIColor.systemBackground)
-        #elseif os(tvOS)
-        return colorScheme == .dark ? Color(white: 0.15) : Color(white: 0.95)
-        #else
-        return Color(NSColor.controlBackgroundColor)
-        #endif
     }
 }
 

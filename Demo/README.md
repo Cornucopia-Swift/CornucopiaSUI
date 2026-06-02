@@ -17,7 +17,8 @@ Currently demonstrates:
 - Async controls and overlays: `BusyButton`, `GenericBusyButton`,
   `ConfirmationBusyButton`, `CC_confirmationDialog` and
   `CC_notificationCapsule`, including Drops-inspired queueing, actions,
-  top/bottom placement, custom colors and standard/glass backgrounds.
+  top/bottom placement, custom colors and standard/glass backgrounds. The
+  confirmation dialog screen also shows standard and glass surface variants.
 - Text and motion components: `MarqueeText`, `MarqueeScrollView`,
   `BlendingTextLabel`, `SynchronizedBlendingTextLabel` and
   `SynchronizedBlendingContainer`.

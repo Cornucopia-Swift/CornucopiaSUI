@@ -9,22 +9,44 @@ public enum ConfirmationDialogBackgroundStyle {
     case plain
 }
 
+public enum ConfirmationDialogSurfaceStyle: Hashable {
+    case `default`
+    case standard
+    case glass
+
+    var resolved: Self {
+        switch self {
+            case .default:
+                if #available(iOS 26.0, *) {
+                    .glass
+                } else {
+                    .standard
+                }
+            case .standard, .glass:
+                self
+        }
+    }
+}
+
 public struct ConfirmationDialogBackground {
     public let backdropColor: Color
     public let sheetBackgroundColor: Color?
     public let cardBackgroundColor: Color?
     public let style: ConfirmationDialogBackgroundStyle
+    public let surfaceStyle: ConfirmationDialogSurfaceStyle
 
     public init(
         backdropColor: Color = Color.black.opacity(0.4),
         sheetBackgroundColor: Color? = nil,
         cardBackgroundColor: Color? = nil,
-        style: ConfirmationDialogBackgroundStyle = .system
+        style: ConfirmationDialogBackgroundStyle = .system,
+        surfaceStyle: ConfirmationDialogSurfaceStyle = .default
     ) {
         self.backdropColor = backdropColor
         self.sheetBackgroundColor = sheetBackgroundColor
         self.cardBackgroundColor = cardBackgroundColor
         self.style = style
+        self.surfaceStyle = surfaceStyle
     }
 
     public static let `default` = ConfirmationDialogBackground()
@@ -33,7 +55,8 @@ public struct ConfirmationDialogBackground {
         backdropColor: .clear,
         sheetBackgroundColor: .clear,
         cardBackgroundColor: .clear,
-        style: .plain
+        style: .plain,
+        surfaceStyle: .standard
     )
 }
 
