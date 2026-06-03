@@ -1000,10 +1000,10 @@ private final class VINKeyboardFeedbackPerformer {
             UIDevice.current.playInputClick()
         } else {
             AudioServicesPlaySystemSound(1104)
+            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+            impactFeedback.prepare()
+            impactFeedback.impactOccurred(intensity: 0.75)
         }
-        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-        impactFeedback.prepare()
-        impactFeedback.impactOccurred(intensity: 0.75)
     }
 
     func performScanSuccess() {
