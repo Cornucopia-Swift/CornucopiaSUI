@@ -9,6 +9,7 @@ import SwiftUI
 import VisionKit
 
 @available(iOS 16.0, *)
+@MainActor
 struct VINScannerView: UIViewControllerRepresentable {
 
     let onRecognizedVIN: (String) -> Void

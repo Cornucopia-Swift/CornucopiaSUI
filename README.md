@@ -68,6 +68,14 @@ validity feedback.
 - `NetworkAwareTextField` and `VINTextField` for free-text validation paths.
 - `StyledTextField` for common iOS text-field presentation.
 
+Do not combine a matching field and keyboard input for the same value. In
+particular, do not use `VINTextField` with `VINKeyboardInput`, or
+`NetworkAwareTextField` with `IPv4KeyboardInput`/`MACKeyboardInput`.
+The `*KeyboardInput` controls are complete domain inputs, not accessories for
+text fields. If a screen needs an OS-positioned keyboard, use a normal field or
+implement a real input method for that field instead of placing a keyboard view
+inside the layout.
+
 ### Operational Feedback
 
 Controls and overlays for actions that take time, need confirmation or should

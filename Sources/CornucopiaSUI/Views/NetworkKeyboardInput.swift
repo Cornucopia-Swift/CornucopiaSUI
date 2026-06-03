@@ -9,6 +9,16 @@ import UIKit
 #endif
 
 /// A domain-specific IPv4 input with octet slots and a numeric keypad.
+///
+/// - Important: Do not pair this control with `NetworkAwareTextField` or any other
+///   field that mirrors the same IPv4 value. A `*KeyboardInput` is already the
+///   visible value display, focus target, normalization boundary, keypad,
+///   hardware-keyboard bridge, and submit surface. Rendering a matching field above
+///   it creates two competing input controls for one value, breaks the mental model,
+///   and usually leaves the keypad floating in the middle of unrelated layout. If an
+///   app needs an OS-positioned keyboard, implement that as a real input method for
+///   the field; do not compose a field and a `*KeyboardInput` side by side or one
+///   above the other.
 public struct IPv4KeyboardInput: View {
 
     @Binding private var text: String
@@ -437,6 +447,16 @@ public struct IPv4KeyboardInput: View {
 }
 
 /// A domain-specific MAC address input with byte slots and a hex keypad.
+///
+/// - Important: Do not pair this control with `NetworkAwareTextField` or any other
+///   field that mirrors the same MAC value. A `*KeyboardInput` is already the
+///   visible value display, focus target, normalization boundary, keypad,
+///   hardware-keyboard bridge, and submit surface. Rendering a matching field above
+///   it creates two competing input controls for one value, breaks the mental model,
+///   and usually leaves the keypad floating in the middle of unrelated layout. If an
+///   app needs an OS-positioned keyboard, implement that as a real input method for
+///   the field; do not compose a field and a `*KeyboardInput` side by side or one
+///   above the other.
 public struct MACKeyboardInput: View {
 
     public enum SeparatorStyle {

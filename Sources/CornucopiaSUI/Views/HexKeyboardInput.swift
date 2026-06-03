@@ -15,6 +15,15 @@ import UIKit
 /// presenting the value as grouped bytes. It supports touch input through an
 /// on-screen hex keypad, hardware keyboard entry, single-nibble deletion, clearing
 /// the current payload, and an optional submit action.
+///
+/// - Important: Do not pair this control with a separate hex `TextField` or another
+///   field that mirrors the same value. A `*KeyboardInput` is already the visible
+///   value display, focus target, normalization boundary, keypad, hardware-keyboard
+///   bridge, and submit surface. Rendering a matching field above it creates two
+///   competing input controls for one value, breaks the mental model, and usually
+///   leaves the keypad floating in the middle of unrelated layout. If an app needs
+///   an OS-positioned keyboard, implement that as a real input method for the field;
+///   do not compose a field and a `*KeyboardInput` side by side or one above the other.
 public struct HexKeyboardInput: View {
 
     /// Semantic action shown in the keyboard return-key position.

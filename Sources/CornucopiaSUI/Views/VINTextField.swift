@@ -93,6 +93,12 @@ extension VINTextField {
 
 // MARK: - SwiftUI View
 
+/// A free-text VIN field with validation feedback.
+///
+/// Use this when VIN entry should behave like a normal text field and let the
+/// operating system position the keyboard. Do not place `VINKeyboardInput` next to
+/// this field for the same binding. `VINKeyboardInput` is a complete domain input on
+/// its own, not a decorative keyboard companion for `VINTextField`.
 public struct VINTextField: View {
     
     public enum ValidationState: Equatable {

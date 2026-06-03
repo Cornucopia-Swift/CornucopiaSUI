@@ -17,6 +17,16 @@ import AppKit
 /// `VINKeyboardInput` keeps the bound value normalized to uppercase VIN
 /// characters, omits the invalid `I`, `O`, and `Q` keys, groups the value as
 /// WMI/VDS/VIS, and highlights the check-digit position while typing.
+///
+/// - Important: Do not pair this control with `VINTextField` or any other field that
+///   mirrors the same VIN value. A `*KeyboardInput` is already the visible value
+///   display, focus target, normalization boundary, keypad, hardware-keyboard bridge,
+///   scanner entry point, and submit surface. Rendering a matching field above it
+///   creates two competing input controls for one value, breaks the mental model, and
+///   usually leaves the keypad floating in the middle of unrelated layout. If an app
+///   needs an OS-positioned VIN keyboard, implement that as a real input method for
+///   the field; do not compose `VINTextField` and `VINKeyboardInput` side by side or
+///   one above the other.
 public struct VINKeyboardInput: View {
 
     public enum KeyboardLayout {

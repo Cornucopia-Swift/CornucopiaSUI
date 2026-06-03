@@ -387,6 +387,13 @@ public class NetworkInputValidator: ObservableObject {
 
 // MARK: - SwiftUI View
 
+/// A free-text network field with classification and validation feedback.
+///
+/// Use this when network entry should behave like a normal text field and let the
+/// operating system position the keyboard. Do not place `IPv4KeyboardInput` or
+/// `MACKeyboardInput` next to this field for the same binding. The keyboard input
+/// controls are complete domain inputs on their own, not decorative keyboard
+/// companions for `NetworkAwareTextField`.
 public struct NetworkAwareTextField: View {
     
     public enum ValidationState: Equatable {
