@@ -48,8 +48,8 @@ For screenshots and focused UI-test launches, set `CORNUCOPIA_DEMO_SCREEN` to a
 ```bash
 cd Demo
 xcodegen generate
-xcodebuild -project CornucopiaSUIDemo.xcodeproj -scheme CornucopiaSUIDemo \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' build
+set -o pipefail && xcodebuild -project CornucopiaSUIDemo.xcodeproj -scheme CornucopiaSUIDemo \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' build | xcbeautify -qq
 ```
 
 ## Component Families
@@ -63,6 +63,8 @@ validity feedback.
 - `HexKeyboardInput` for hex payloads and byte-oriented diagnostic messages.
 - `VINKeyboardInput` for VIN entry with WMI/VDS/VIS grouping, check-digit
   emphasis and optional NHTSA vPIC decoding.
+- `VINKeyboardTextField` for a regular styled field that uses
+  `VINKeyboardInput` as its real iOS `inputView`.
 - `IPv4KeyboardInput` for octet-by-octet IPv4 entry with 0-255 enforcement.
 - `MACKeyboardInput` for MAC addresses with selectable separator styles.
 - `NetworkAwareTextField` and `VINTextField` for free-text validation paths.
@@ -72,9 +74,10 @@ Do not combine a matching field and keyboard input for the same value. In
 particular, do not use `VINTextField` with `VINKeyboardInput`, or
 `NetworkAwareTextField` with `IPv4KeyboardInput`/`MACKeyboardInput`.
 The `*KeyboardInput` controls are complete domain inputs, not accessories for
-text fields. If a screen needs an OS-positioned keyboard, use a normal field or
-implement a real input method for that field instead of placing a keyboard view
-inside the layout.
+text fields. If a screen needs an OS-positioned VIN keyboard, use
+`VINKeyboardTextField`; for other domains, use a normal field or implement a
+real input method for that field instead of placing a keyboard view inside the
+layout.
 
 ### Operational Feedback
 

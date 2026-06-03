@@ -28,7 +28,7 @@ enum DemoSection: String, CaseIterable, Identifiable {
     var items: [DemoItem] {
         switch self {
             case .inputs:
-                [.hexKeyboard, .vinKeyboard, .networkKeyboards, .textFields]
+                [.hexKeyboard, .vinKeyboard, .vinKeyboardInputMethod, .networkKeyboards, .textFields]
             case .controls:
                 [.textFieldStepper, .busyButtons, .dialogs]
             case .textAndMotion:
@@ -44,6 +44,7 @@ enum DemoSection: String, CaseIterable, Identifiable {
 enum DemoItem: String, CaseIterable, Identifiable, Hashable {
     case hexKeyboard
     case vinKeyboard
+    case vinKeyboardInputMethod
     case networkKeyboards
     case textFields
     case textFieldStepper
@@ -61,6 +62,7 @@ enum DemoItem: String, CaseIterable, Identifiable, Hashable {
         switch self {
             case .hexKeyboard: "Hex Keyboard"
             case .vinKeyboard: "VIN Keyboard"
+            case .vinKeyboardInputMethod: "VIN Input Method"
             case .networkKeyboards: "Network Keyboards"
             case .textFields: "Validated Text Fields"
             case .textFieldStepper: "Text Field Stepper"
@@ -78,6 +80,7 @@ enum DemoItem: String, CaseIterable, Identifiable, Hashable {
         switch self {
             case .hexKeyboard: "Diagnostic payload entry, byte grouping, paste and send."
             case .vinKeyboard: "VIN slot input, validation, layout switching and decoder path."
+            case .vinKeyboardInputMethod: "A regular text field with VINKeyboardInput installed as its inputView."
             case .networkKeyboards: "IPv4 and MAC slot input with domain-gated keys."
             case .textFields: "Styled, network-aware and VIN-aware text entry."
             case .textFieldStepper: "Editable numeric stepper with range clamping and press-and-hold controls."
@@ -95,6 +98,7 @@ enum DemoItem: String, CaseIterable, Identifiable, Hashable {
         switch self {
             case .hexKeyboard: "number"
             case .vinKeyboard: "car"
+            case .vinKeyboardInputMethod: "keyboard"
             case .networkKeyboards: "network"
             case .textFields: "text.cursor"
             case .textFieldStepper: "plusminus.circle"
@@ -112,6 +116,7 @@ enum DemoItem: String, CaseIterable, Identifiable, Hashable {
         switch self {
             case .hexKeyboard: .blue
             case .vinKeyboard: .green
+            case .vinKeyboardInputMethod: .orange
             case .networkKeyboards: .teal
             case .textFields: .indigo
             case .textFieldStepper: .blue
@@ -132,6 +137,8 @@ enum DemoItem: String, CaseIterable, Identifiable, Hashable {
                 HexKeyboardDemoView()
             case .vinKeyboard:
                 VINKeyboardDemoView()
+            case .vinKeyboardInputMethod:
+                VINKeyboardInputMethodDemoView()
             case .networkKeyboards:
                 NetworkKeyboardDemoView()
             case .textFields:

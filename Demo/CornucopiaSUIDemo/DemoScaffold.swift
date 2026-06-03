@@ -18,6 +18,8 @@ struct DemoScroll<Content: View>: View {
                 content
             }
             .padding()
+            .frame(maxWidth: 760)
+            .frame(maxWidth: .infinity, alignment: .center)
         }
         .background(Color(.systemGroupedBackground))
     }

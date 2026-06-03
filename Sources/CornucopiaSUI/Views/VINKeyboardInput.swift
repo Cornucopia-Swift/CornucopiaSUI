@@ -24,9 +24,9 @@ import AppKit
 ///   scanner entry point, and submit surface. Rendering a matching field above it
 ///   creates two competing input controls for one value, breaks the mental model, and
 ///   usually leaves the keypad floating in the middle of unrelated layout. If an app
-///   needs an OS-positioned VIN keyboard, implement that as a real input method for
-///   the field; do not compose `VINTextField` and `VINKeyboardInput` side by side or
-///   one above the other.
+///   needs an OS-positioned VIN keyboard, use `VINKeyboardTextField`, which installs
+///   this keypad as the field's real `inputView`; do not compose `VINTextField` and
+///   `VINKeyboardInput` side by side or one above the other.
 public struct VINKeyboardInput: View {
 
     public enum KeyboardLayout {
@@ -37,7 +37,6 @@ public struct VINKeyboardInput: View {
 
     @State private var internalText = ""
     @State private var validationState: VINTextField.ValidationState = .empty
-    @State private var isActiveSlotPulsing = false
     @State private var vehicleDetails: VINVehicleDetails?
     @State private var isDecodingVehicle = false
     @State private var isScanningVIN = false
@@ -55,6 +54,8 @@ public struct VINKeyboardInput: View {
     private let submitSystemImage: String
     private let autoFocus: Bool
     private let isSubmitEnabled: Bool
+    private let showsDisplay: Bool
+    private let usesInternalFocus: Bool
     private let vehicleDecoder: VINVehicleDecoder?
     private let onSubmit: (() -> Void)?
 
@@ -74,6 +75,13 @@ public struct VINKeyboardInput: View {
     ///   - submitSystemImage: SF Symbol used for the submit key.
     ///   - autoFocus: When `true`, the control claims focus when it appears.
     ///   - isSubmitEnabled: External enablement flag for submit.
+    ///   - showsDisplay: Whether the control renders its own VIN/WMI/VDS/VIS display.
+    ///     Keep this enabled for the standalone control and for input-method hosting
+    ///     when the domain breakdown belongs to the keyboard surface.
+    ///   - usesInternalFocus: Whether the control owns focus and installs its SwiftUI
+    ///     hardware-keyboard bridge. Disable this only when hosting the control as a
+    ///     real UIKit `inputView`, where the attached text field must remain first
+    ///     responder.
     ///   - onSubmit: Called when the submit key is tapped or Return is pressed.
     public init(
         text: Binding<String>? = nil,
@@ -84,6 +92,8 @@ public struct VINKeyboardInput: View {
         submitSystemImage: String = "checkmark",
         autoFocus: Bool = false,
         isSubmitEnabled: Bool = true,
+        showsDisplay: Bool = true,
+        usesInternalFocus: Bool = true,
         vehicleDecoder: VINVehicleDecoder? = nil,
         onSubmit: (() -> Void)? = nil
     ) {
@@ -95,6 +105,8 @@ public struct VINKeyboardInput: View {
         self.submitSystemImage = submitSystemImage
         self.autoFocus = autoFocus
         self.isSubmitEnabled = isSubmitEnabled
+        self.showsDisplay = showsDisplay
+        self.usesInternalFocus = usesInternalFocus
         self.vehicleDecoder = vehicleDecoder
         self.onSubmit = onSubmit
     }
@@ -107,6 +119,8 @@ public struct VINKeyboardInput: View {
         submitSystemImage: String = "checkmark",
         autoFocus: Bool = false,
         isSubmitEnabled: Bool = true,
+        showsDisplay: Bool = true,
+        usesInternalFocus: Bool = true,
         vehicleDecoder: VINVehicleDecoder? = nil,
         onSubmit: (() -> Void)? = nil
     ) {
@@ -117,6 +131,8 @@ public struct VINKeyboardInput: View {
             submitSystemImage: submitSystemImage,
             autoFocus: autoFocus,
             isSubmitEnabled: isSubmitEnabled,
+            showsDisplay: showsDisplay,
+            usesInternalFocus: usesInternalFocus,
             vehicleDecoder: vehicleDecoder,
             onSubmit: onSubmit
         )
@@ -131,6 +147,8 @@ public struct VINKeyboardInput: View {
         submitSystemImage: String = "checkmark",
         autoFocus: Bool = false,
         isSubmitEnabled: Bool = true,
+        showsDisplay: Bool = true,
+        usesInternalFocus: Bool = true,
         vehicleDecoder: VINVehicleDecoder? = nil,
         onSubmit: (() -> Void)? = nil
     ) {
@@ -142,6 +160,8 @@ public struct VINKeyboardInput: View {
             submitSystemImage: submitSystemImage,
             autoFocus: autoFocus,
             isSubmitEnabled: isSubmitEnabled,
+            showsDisplay: showsDisplay,
+            usesInternalFocus: usesInternalFocus,
             vehicleDecoder: vehicleDecoder,
             onSubmit: onSubmit
         )
@@ -156,6 +176,8 @@ public struct VINKeyboardInput: View {
         submitSystemImage: String = "checkmark",
         autoFocus: Bool = false,
         isSubmitEnabled: Bool = true,
+        showsDisplay: Bool = true,
+        usesInternalFocus: Bool = true,
         vehicleDecoder: VINVehicleDecoder? = nil,
         onSubmit: (() -> Void)? = nil
     ) {
@@ -167,14 +189,34 @@ public struct VINKeyboardInput: View {
             submitSystemImage: submitSystemImage,
             autoFocus: autoFocus,
             isSubmitEnabled: isSubmitEnabled,
+            showsDisplay: showsDisplay,
+            usesInternalFocus: usesInternalFocus,
             vehicleDecoder: vehicleDecoder,
             onSubmit: onSubmit
         )
     }
 
     public var body: some View {
+        if usesInternalFocus {
+            content
+                .CC_keypadHardwareInput(
+                    internalFocus: $isInputFocused,
+                    externalFocus: focusedBinding,
+                    handleKeyPress: handleKeyPress,
+                    handleDelete: deleteLastCharacter,
+                    handleSubmit: submit,
+                    handlePaste: paste
+                )
+        } else {
+            content
+        }
+    }
+
+    private var content: some View {
         VStack(spacing: 8) {
-            display
+            if showsDisplay {
+                display
+            }
             keypad
         }
         .padding(10)
@@ -184,11 +226,10 @@ public struct VINKeyboardInput: View {
             requestFocus()
         }
         .task {
-            if autoFocus {
+            if autoFocus, usesInternalFocus {
                 requestFocus()
             }
             normalizeBoundText()
-            isActiveSlotPulsing = true
         }
         .task(id: decodeKey) {
             await decodeVehicleDetails()
@@ -199,14 +240,6 @@ public struct VINKeyboardInput: View {
         .onChange(of: validationState) { newState in
             validationStateBinding?.wrappedValue = newState
         }
-        .CC_keypadHardwareInput(
-            internalFocus: $isInputFocused,
-            externalFocus: focusedBinding,
-            handleKeyPress: handleKeyPress,
-            handleDelete: deleteLastCharacter,
-            handleSubmit: submit,
-            handlePaste: paste
-        )
     }
 
     private var display: some View {
@@ -291,13 +324,11 @@ public struct VINKeyboardInput: View {
                 .frame(height: 4)
                 .overlay {
                     if index == activeIndex {
-                        Capsule(style: .continuous)
-                            .fill(activeMarkerColor(at: index))
-                            .opacity(isActiveSlotPulsing ? 0.9 : 0.2)
-                            .animation(
-                                .easeInOut(duration: 0.8).repeatForever(autoreverses: true),
-                                value: isActiveSlotPulsing
-                            )
+                        TimelineView(.animation) { context in
+                            Capsule(style: .continuous)
+                                .fill(activeMarkerColor)
+                                .opacity(activeMarkerOpacity(at: context.date))
+                        }
                     }
                 }
         }
@@ -311,8 +342,13 @@ public struct VINKeyboardInput: View {
         return count < 17 ? count : nil
     }
 
-    private func activeMarkerColor(at index: Int) -> Color {
-        (index == 8 && enforcesCheckDigit) ? .orange : .accentColor
+    private var activeMarkerColor: Color {
+        colorScheme == .dark ? .white : .black
+    }
+
+    private func activeMarkerOpacity(at date: Date) -> Double {
+        let phase = (sin(date.timeIntervalSinceReferenceDate * .pi * 0.95) + 1) / 2
+        return 0.24 + phase * 0.68
     }
 
     /// Semantic group color for a slot position (WMI / VDS / VIS).
@@ -930,13 +966,14 @@ public struct VINKeyboardInput: View {
     }
 
     private func requestFocus() {
+        guard usesInternalFocus else { return }
         isInputFocused = true
         focusedBinding?.wrappedValue = true
     }
 
     private func feedback() {
 #if canImport(UIKit)
-        feedbackPerformer.perform()
+        feedbackPerformer.perform(usesSystemInputClick: !usesInternalFocus)
 #endif
     }
 
@@ -956,23 +993,23 @@ public struct VINKeyboardInput: View {
 @MainActor
 private final class VINKeyboardFeedbackPerformer {
 
-    private let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+    init() {}
 
-    init() {
+    func perform(usesSystemInputClick: Bool) {
+        if usesSystemInputClick {
+            UIDevice.current.playInputClick()
+        } else {
+            AudioServicesPlaySystemSound(1104)
+        }
+        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
         impactFeedback.prepare()
-    }
-
-    func perform() {
-        AudioServicesPlaySystemSound(1104)
         impactFeedback.impactOccurred(intensity: 0.75)
-        impactFeedback.prepare()
     }
 
     func performScanSuccess() {
         AudioServicesPlaySystemSound(1057)
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         UIImpactFeedbackGenerator(style: .rigid).impactOccurred(intensity: 0.9)
-        impactFeedback.prepare()
     }
 }
 #endif
