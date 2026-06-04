@@ -12,3 +12,11 @@
 "Delete" = "Delete";
 "Submit VIN" = "Submit VIN";
 "VIN %@" = "VIN %@";
+
+/* VoiceOver: value-field label and spoken state announcements */
+"VIN" = "VIN";
+"empty" = "empty";
+"Valid VIN" = "Valid VIN";
+"Valid VIN, check digit warning" = "Valid VIN, check digit warning";
+"Invalid characters" = "Invalid characters";
+"VIN too long" = "VIN too long";

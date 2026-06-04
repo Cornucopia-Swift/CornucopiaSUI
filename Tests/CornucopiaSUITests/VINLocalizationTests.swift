@@ -26,5 +26,9 @@ final class VINLocalizationTests: XCTestCase {
         XCTAssertEqual(de.localizedString(forKey: "Scan VIN", value: "?", table: nil), "FIN scannen")
         XCTAssertEqual(de.localizedString(forKey: "No vehicle details", value: "?", table: nil), "Keine Fahrzeugdaten")
         XCTAssertEqual(de.localizedString(forKey: "VIN %@", value: "?", table: nil), "FIN %@")
+        // VoiceOver announcement strings
+        XCTAssertEqual(de.localizedString(forKey: "VIN", value: "?", table: nil), "FIN")
+        XCTAssertEqual(de.localizedString(forKey: "Valid VIN", value: "?", table: nil), "Gültige FIN")
+        XCTAssertEqual(de.localizedString(forKey: "empty", value: "?", table: nil), "leer")
     }
 }

@@ -295,6 +295,19 @@ public struct VINKeyboardInput: View {
             }
         }
         .frame(height: 54)
+        // The individual slots are accessibilityHidden; surface the value as one element
+        // that reads the entered characters (spelled out) so VoiceOver users hear the VIN.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(CC_localized("VIN"))
+        .accessibilityValue(vinAccessibilityValue)
+    }
+
+    /// The entered VIN spelled character-by-character for VoiceOver (so "WV…" is read as
+    /// letters, not as a word), or a spoken "empty" placeholder.
+    private var vinAccessibilityValue: String {
+        let vin = text.wrappedValue
+        guard !vin.isEmpty else { return CC_localized("empty") }
+        return vin.map(String.init).joined(separator: " ")
     }
 
     private func groupLabel(_ label: String, count: Int, color: Color, cellWidth: CGFloat, cellSpacing: CGFloat) -> some View {
@@ -931,7 +944,37 @@ public struct VINKeyboardInput: View {
     }
 
     private func updateValidationState() {
+        let previous = validationState.inputType
         validationState = validateVIN(text.wrappedValue)
+        let current = validationState.inputType
+        // Announce only when the state meaningfully changes, so VoiceOver users hear
+        // "Valid VIN" / a warning / an error without a remark on every keystroke.
+        if current != previous, let phrase = validationAnnouncement(for: current) {
+            announce(phrase)
+        }
+    }
+
+    private func validationAnnouncement(for type: VINTextField.InputType) -> String? {
+        switch type {
+            case .valid:
+                CC_localized("Valid VIN")
+            case .validWithCheckDigitWarning:
+                CC_localized("Valid VIN, check digit warning")
+            case .invalidCharacters:
+                CC_localized("Invalid characters")
+            case .tooLong:
+                CC_localized("VIN too long")
+            case .empty, .incomplete:
+                nil
+        }
+    }
+
+    /// Posts a VoiceOver announcement (no-op where UIKit accessibility is unavailable).
+    private func announce(_ message: String) {
+        guard !message.isEmpty else { return }
+#if canImport(UIKit)
+        UIAccessibility.post(notification: .announcement, argument: message)
+#endif
     }
 
     /// The VIN prefix that determines the vehicle, or `nil` when enrichment is off or too
@@ -963,6 +1006,11 @@ public struct VINKeyboardInput: View {
         let details = try? await vehicleDecoder(vin)
         guard !Task.isCancelled else { return }
         vehicleDetails = details
+        // Once the online lookup actually identifies the vehicle, speak it — it appears
+        // silently otherwise and VoiceOver users would miss the enrichment.
+        if let details, !(details.make ?? "").isEmpty, let headline = vehicleHeadline {
+            announce(headline)
+        }
     }
 
     private func requestFocus() {

@@ -12,3 +12,11 @@
 "Delete" = "Löschen";
 "Submit VIN" = "FIN bestätigen";
 "VIN %@" = "FIN %@";
+
+/* VoiceOver: value-field label and spoken state announcements */
+"VIN" = "FIN";
+"empty" = "leer";
+"Valid VIN" = "Gültige FIN";
+"Valid VIN, check digit warning" = "Gültige FIN, Prüfziffer-Warnung";
+"Invalid characters" = "Ungültige Zeichen";
+"VIN too long" = "FIN zu lang";
