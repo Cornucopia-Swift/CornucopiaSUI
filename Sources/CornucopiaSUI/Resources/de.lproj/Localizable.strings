@@ -1,0 +1,14 @@
+/* VIN keyboard — German automotive convention uses "FIN" (Fahrzeug-Identifizierungsnummer) */
+"Enter VIN" = "FIN eingeben";
+"Clear VIN" = "FIN löschen";
+"Stop VIN scan" = "FIN-Scan beenden";
+"Scan VIN" = "FIN scannen";
+"Scan VIN with camera" = "FIN mit Kamera scannen";
+"Camera scanner unavailable" = "Kamera-Scanner nicht verfügbar";
+"Enter the VIN with the keypad." = "FIN über die Tastatur eingeben.";
+"No vehicle details" = "Keine Fahrzeugdaten";
+"Looking up…" = "Suche läuft…";
+"Looking up vehicle" = "Fahrzeug wird ermittelt";
+"Delete" = "Löschen";
+"Submit VIN" = "FIN bestätigen";
+"VIN %@" = "FIN %@";

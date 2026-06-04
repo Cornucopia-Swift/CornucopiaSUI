@@ -260,7 +260,7 @@ public struct VINKeyboardInput: View {
             }
             .buttonStyle(KeypadInlineButtonStyle(isEnabled: !text.wrappedValue.isEmpty))
             .disabled(text.wrappedValue.isEmpty)
-            .accessibilityLabel("Clear VIN")
+            .accessibilityLabel(CC_localized("Clear VIN"))
         }
         .background(displayBackground)
     }
@@ -488,7 +488,7 @@ public struct VINKeyboardInput: View {
             }
             .buttonStyle(KeypadKeyStyle(role: VINKeyboardKeyRole.action))
             .padding(8)
-            .accessibilityLabel("Stop VIN scan")
+            .accessibilityLabel(CC_localized("Stop VIN scan"))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -524,7 +524,7 @@ public struct VINKeyboardInput: View {
     }
 
     private var scannerCaption: some View {
-        Label("Scan VIN", systemImage: "viewfinder")
+        Label(CC_localized("Scan VIN"), systemImage: "viewfinder")
             .font(.caption.weight(.semibold))
             .foregroundStyle(.white)
             .padding(.horizontal, 10)
@@ -537,9 +537,9 @@ public struct VINKeyboardInput: View {
         VStack(spacing: 8) {
             Image(systemName: "camera.slash")
                 .font(.title2)
-            Text("Camera scanner unavailable")
+            Text(CC_localized("Camera scanner unavailable"))
                 .font(.caption.weight(.semibold))
-            Text("Enter the VIN with the keypad.")
+            Text(CC_localized("Enter the VIN with the keypad."))
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }
@@ -674,7 +674,7 @@ public struct VINKeyboardInput: View {
         } else if isDecodingVehicle {
             vehicleLookupIndicator
         } else {
-            Text("No vehicle details")
+            Text(CC_localized("No vehicle details"))
                 .font(.caption)
                 .foregroundStyle(.tertiary)
         }
@@ -684,7 +684,7 @@ public struct VINKeyboardInput: View {
         HStack(spacing: 4) {
             ProgressView()
                 .controlSize(.mini)
-            Text("Looking up…")
+            Text(CC_localized("Looking up…"))
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }
@@ -721,7 +721,7 @@ public struct VINKeyboardInput: View {
 
     private var vehicleAccessibilityLabel: String {
         guard let headline = vehicleHeadline else {
-            return isDecodingVehicle ? "Looking up vehicle" : ""
+            return isDecodingVehicle ? CC_localized("Looking up vehicle") : ""
         }
         if let subline = vehicleSubline {
             return "\(headline), \(subline)"
@@ -738,7 +738,7 @@ public struct VINKeyboardInput: View {
     }
 
     private func vinKey(_ key: String) -> some View {
-        KeypadKey(title: key, role: keyRole(for: key), isEnabled: isKeyEnabled(key), accessibilityLabel: "VIN \(key)") {
+        KeypadKey(title: key, role: keyRole(for: key), isEnabled: isKeyEnabled(key), accessibilityLabel: CC_localized("VIN \(key)")) {
             append(key)
         }
     }
@@ -762,7 +762,7 @@ public struct VINKeyboardInput: View {
         }
         .buttonStyle(KeypadKeyStyle(role: VINKeyboardKeyRole.action))
         .disabled(text.wrappedValue.isEmpty)
-        .accessibilityLabel("Delete")
+        .accessibilityLabel(CC_localized("Delete"))
     }
 
     @ViewBuilder
@@ -776,7 +776,7 @@ public struct VINKeyboardInput: View {
                     .frame(width: 58, height: 42)
             }
             .buttonStyle(KeypadKeyStyle(role: VINKeyboardKeyRole.action))
-            .accessibilityLabel("Scan VIN with camera")
+            .accessibilityLabel(CC_localized("Scan VIN with camera"))
         }
     }
 
@@ -790,7 +790,7 @@ public struct VINKeyboardInput: View {
         }
         .buttonStyle(KeypadKeyStyle(role: canSubmit ? VINKeyboardKeyRole.submit : .action))
         .disabled(!canSubmit)
-        .accessibilityLabel("Submit VIN")
+        .accessibilityLabel(CC_localized("Submit VIN"))
     }
 
     private var numberKeys: [String] {

@@ -1,0 +1,14 @@
+/* VIN keyboard */
+"Enter VIN" = "Enter VIN";
+"Clear VIN" = "Clear VIN";
+"Stop VIN scan" = "Stop VIN scan";
+"Scan VIN" = "Scan VIN";
+"Scan VIN with camera" = "Scan VIN with camera";
+"Camera scanner unavailable" = "Camera scanner unavailable";
+"Enter the VIN with the keypad." = "Enter the VIN with the keypad.";
+"No vehicle details" = "No vehicle details";
+"Looking up…" = "Looking up…";
+"Looking up vehicle" = "Looking up vehicle";
+"Delete" = "Delete";
+"Submit VIN" = "Submit VIN";
+"VIN %@" = "VIN %@";

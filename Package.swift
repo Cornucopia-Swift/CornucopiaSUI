@@ -4,6 +4,7 @@ import PackageDescription
 
 let package = Package(
     name: "CornucopiaSUI",
+    defaultLocalization: "en",
     platforms: [
         .macOS(.v13),
         .iOS(.v18),
@@ -28,6 +29,9 @@ let package = Package(
                 "CornucopiaCore",
                 "SFSafeSymbols",
                 "VIN",
+            ],
+            resources: [
+                .process("Resources"),
             ]
         ),
         .testTarget(
