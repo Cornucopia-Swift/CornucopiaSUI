@@ -79,6 +79,9 @@ Custom view modifiers follow the pattern of creating a struct conforming to `Vie
 - iOS 17+, macOS 13+, tvOS 17+, watchOS 10+
 - Platform-specific code uses availability checks (e.g., `#available(iOS 16.0, *)`)
 
+### Localization
+The package ships its own localized resources (`defaultLocalization: "en"`, `Sources/CornucopiaSUI/Resources/{en,de}.lproj/Localizable.strings`, English + German). Route **every** user-visible string through `CC_localized(_:)` (in `Localization.swift`) for `String` contexts, or `Text(key, bundle: .module)` for `Text` — a bare `Text("…")`/`String(localized:)` resolves against the *app* bundle and never finds package strings. Add each key to **both** `.strings` files; German automotive UI uses "FIN" (not "VIN"). `CC_localized` is `@usableFromInline` so it can localize public-init `placeholder` defaults. Verify a language by loading its `.lproj` directly (see `VINLocalizationTests`) — the `locale:` arg of `String(localized:)` only affects formatting, not table selection. Localized so far: the VIN/Hex/IPv4/MAC keypads and `VINTextField`; other views still hardcode English and can adopt the same pattern.
+
 ## Design Notes: Domain-Specific Input Widgets
 
 Specialized input widgets are useful when an input is not free text, but a small domain-specific protocol. Their value is not just a custom keyboard: the widget can move domain rules directly into the input flow, including allowed characters, grouping, validity, submit conditions, visual semantics, and error prevention.
