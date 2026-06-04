@@ -120,6 +120,11 @@ public struct HexKeyboardInput: View {
         )
     }
 
+    /// The entered payload read out for VoiceOver as space-separated byte groups.
+    private var hexAccessibilityValue: String {
+        text.isEmpty ? CC_localized("empty") : Self.groupedHexBytes(text).joined(separator: " ")
+    }
+
     private var display: some View {
         HStack(spacing: 0) {
             ScrollView(.horizontal, showsIndicators: false) {
@@ -141,6 +146,9 @@ public struct HexKeyboardInput: View {
                 .padding(.leading, 12)
                 .padding(.trailing, 8)
                 .padding(.vertical, 10)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(CC_localized("Hex payload"))
+                .accessibilityValue(hexAccessibilityValue)
             }
 
             Button {

@@ -101,8 +101,9 @@ public struct IPv4KeyboardInput: View {
                     }
                     Spacer(minLength: 0)
                 }
-                .accessibilityElement(children: .combine)
+                .accessibilityElement(children: .ignore)
                 .accessibilityLabel(placeholder)
+                .accessibilityValue(addressAccessibilityValue)
 
                 HStack(spacing: 3) {
                     ForEach(0..<4, id: \.self) { index in
@@ -130,6 +131,11 @@ public struct IPv4KeyboardInput: View {
             .accessibilityLabel(CC_localized("Clear IPv4 address"))
         }
         .background(displayBackground)
+    }
+
+    /// The entered address read out for VoiceOver (the label override otherwise hides it).
+    private var addressAccessibilityValue: String {
+        text.isEmpty ? CC_localized("empty") : text
     }
 
     private func ipv4OctetCell(at index: Int) -> some View {
@@ -559,8 +565,9 @@ public struct MACKeyboardInput: View {
                     }
                     Spacer(minLength: 0)
                 }
-                .accessibilityElement(children: .combine)
+                .accessibilityElement(children: .ignore)
                 .accessibilityLabel(placeholder)
+                .accessibilityValue(addressAccessibilityValue)
 
                 HStack(spacing: 3) {
                     ForEach(0..<6, id: \.self) { index in
@@ -588,6 +595,11 @@ public struct MACKeyboardInput: View {
             .accessibilityLabel(CC_localized("Clear MAC address"))
         }
         .background(displayBackground)
+    }
+
+    /// The entered address read out for VoiceOver (the label override otherwise hides it).
+    private var addressAccessibilityValue: String {
+        rawHex.isEmpty ? CC_localized("empty") : text
     }
 
     private func macByteCell(at index: Int) -> some View {
