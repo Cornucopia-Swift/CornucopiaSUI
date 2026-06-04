@@ -62,6 +62,7 @@ Custom view modifiers follow the pattern of creating a struct conforming to `Vie
 - Example: `PersistentTaskModifier` with `.CC_task()` extension method
 - Example: `NotificationCapsuleModifier` with `.CC_notificationCapsule()` extension method
 - `CC_confirmationDialog` uses a custom iOS bottom confirmation surface with standard and glass looks; keep the old background configuration compatible when changing it.
+- `CC_slideOverCard` is the SwiftUI-only iOS setup/pairing/permission card surface. Keep the default surface opaque, make background bleeding opt-in only through `allowsBackgroundBleeding`, preserve both `.padded` and `.fullWidth` presentation layouts, and keep content-height changes animated. Text-field cards must respect the keyboard safe area; exercise the demo's `textField` variant after changing presentation, safe-area or focus behavior.
 
 #### Navigation System
 `NavigationController` provides centralized navigation management:

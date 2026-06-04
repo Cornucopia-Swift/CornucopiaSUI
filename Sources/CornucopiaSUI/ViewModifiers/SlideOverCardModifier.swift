@@ -291,7 +291,7 @@ private struct SlideOverCardContainer<CardContent: View>: View {
             ZStack(alignment: .bottom) {
                 Color.black
                     .opacity(showContent ? style.dimmingOpacity : 0)
-                    .ignoresSafeArea()
+                    .ignoresSafeArea(.container)
                     .contentShape(Rectangle())
                     .onTapGesture {
                         guard !options.contains(.disableTapToDismiss) else { return }
@@ -305,7 +305,7 @@ private struct SlideOverCardContainer<CardContent: View>: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .ignoresSafeArea()
+        .ignoresSafeArea(.container)
         .accessibilityAddTraits(.isModal)
         .animation(presentationAnimation, value: showContent)
         .animation(interactionAnimation, value: dragOffset)

@@ -19,6 +19,8 @@ Currently demonstrates:
   `CC_notificationCapsule`, including Drops-inspired queueing, actions,
   top/bottom placement, custom colors and standard/glass backgrounds. The
   confirmation dialog screen also shows standard and glass surface variants.
+- Slide-over setup cards: `CC_slideOverCard` with welcome, item-driven setup,
+  pairing, glass, full-width, required-step and focused text-field variants.
 - Text and motion components: `MarqueeText`, `MarqueeScrollView`,
   `BlendingTextLabel`, `SynchronizedBlendingTextLabel` and
   `SynchronizedBlendingContainer`.
@@ -55,3 +57,9 @@ xcodebuild -project CornucopiaSUIDemo.xcodeproj -scheme CornucopiaSUIDemo \
 
 The app depends on the parent `CornucopiaSUI` package via a local path
 reference, so changes to the library are picked up directly.
+
+For focused slide-over card launches, open the `slideOverCard` demo item and set
+`CORNUCOPIA_DEMO_SLIDEOVER_CARD` to `welcome`, `flow`, `pair`, `glass`,
+`fullWidth`, `required` or `textField`. The `textField` variant auto-focuses an
+input to exercise keyboard avoidance and animated content-height changes on
+iPhone and iPad.

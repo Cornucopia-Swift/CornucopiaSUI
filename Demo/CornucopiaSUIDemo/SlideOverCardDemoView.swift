@@ -12,7 +12,9 @@ struct SlideOverCardDemoView: View {
     @State private var showBleedingPreviewCard = false
     @State private var showFullWidthCard = false
     @State private var showRequiredCard = false
+    @State private var showTextFieldCard = false
     @State private var activeSetupStep: SetupStep?
+    @State private var adapterName = ""
     @State private var lastEvent = "No card shown yet"
     @State private var didApplyInitialCard = false
 
@@ -96,6 +98,15 @@ struct SlideOverCardDemoView: View {
                         }
                         .buttonStyle(.bordered)
                         .demoID("slideover.required")
+
+                        Button {
+                            showTextFieldCard = true
+                            lastEvent = "Opened text-field setup"
+                        } label: {
+                            Label("Text Field", systemImage: "keyboard")
+                        }
+                        .buttonStyle(.bordered)
+                        .demoID("slideover.textField")
                     }
 
                     DemoMetric(title: "Last Event", value: lastEvent)
@@ -111,6 +122,7 @@ struct SlideOverCardDemoView: View {
                     DemoPill("Tap outside to dismiss", color: .teal)
                     DemoPill("Item binding animates between setup steps", color: .indigo)
                     DemoPill("Required cards can disable tap and drag dismissal", color: .orange)
+                    DemoPill("Text fields keep the card above the keyboard", color: .green)
                 }
             }
         }
@@ -201,6 +213,19 @@ struct SlideOverCardDemoView: View {
                 lastEvent = "Required step accepted"
             }
         }
+        .CC_slideOverCard(
+            isPresented: $showTextFieldCard,
+            style: CC_SlideOverCardStyle(surfaceStyle: .standard, accentTint: .green),
+            options: [.disableTapToDismiss],
+            onDismiss: {
+                lastEvent = "Text-field setup dismissed"
+            }
+        ) {
+            TextFieldSetupCard(adapterName: $adapterName) {
+                showTextFieldCard = false
+                lastEvent = adapterName.isEmpty ? "Skipped adapter name" : "Saved \(adapterName)"
+            }
+        }
         .task {
             applyInitialDemoCardIfNeeded()
         }
@@ -229,6 +254,9 @@ struct SlideOverCardDemoView: View {
             case "required":
                 showRequiredCard = true
                 lastEvent = "Opened required step from environment"
+            case "textField":
+                showTextFieldCard = true
+                lastEvent = "Opened text-field setup from environment"
             default:
                 break
         }
@@ -448,6 +476,71 @@ private struct RequiredStepCard: View {
             .demoID("slideover.required.accept")
         }
         .frame(maxWidth: .infinity)
+    }
+}
+
+private struct TextFieldSetupCard: View {
+    @Binding var adapterName: String
+
+    let saveAction: () -> Void
+
+    @FocusState private var isNameFocused: Bool
+
+    var body: some View {
+        VStack(spacing: 18) {
+            SetupGlyph(systemName: "keyboard.fill", color: .green)
+
+            VStack(spacing: 8) {
+                Text("Name Adapter")
+                    .font(.title3.weight(.bold))
+                    .multilineTextAlignment(.center)
+
+                Text("This setup card intentionally focuses a text field so keyboard avoidance, focus changes and content-height updates can be checked together.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Adapter Name")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+
+                TextField("Workshop adapter", text: $adapterName)
+                    .focused($isNameFocused)
+                    .textInputAutocapitalization(.words)
+                    .autocorrectionDisabled()
+                    .submitLabel(.done)
+                    .onSubmit(saveAction)
+                    .padding(.horizontal, 13)
+                    .frame(minHeight: 48)
+                    .background(.quaternary.opacity(0.42), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .strokeBorder(isNameFocused ? Color.green.opacity(0.52) : Color.clear, lineWidth: 1)
+                    }
+                    .demoID("slideover.textField.input")
+
+                if !adapterName.isEmpty {
+                    Text("\(adapterName.count) characters")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Button(action: saveAction) {
+                Label(adapterName.isEmpty ? "Skip" : "Save Name", systemImage: adapterName.isEmpty ? "arrow.right" : "checkmark")
+            }
+            .buttonStyle(CC_SlideOverCardActionButtonStyle(.primary, tint: .green))
+            .demoID("slideover.textField.save")
+        }
+        .frame(maxWidth: .infinity)
+        .task {
+            try? await Task.sleep(nanoseconds: 320_000_000)
+            isNameFocused = true
+        }
     }
 }
 

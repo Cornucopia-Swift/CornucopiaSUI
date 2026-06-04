@@ -88,6 +88,10 @@ leave a visible trace for the user.
 - `CC_busyButton` for turning existing view content into an async busy button.
 - `CC_confirmationDialog` for custom iOS confirmation surfaces with standard
   and glass looks.
+- `CC_slideOverCard` for SwiftUI-only iOS setup, pairing and permission cards
+  with Apple-style bottom presentation, drag/tap dismissal, item-driven flows,
+  padded or full-width layout, opaque-by-default surfaces and opt-in glass
+  background bleeding.
 - `CC_notificationCapsule`, `NotificationCapsuleController` and
   `NotificationCapsuleMessage` for Drops-inspired transient HUDs with queueing,
   actions, top/bottom placement, standard/glass backgrounds, accessibility
@@ -147,6 +151,49 @@ struct PayloadEntry: View {
     }
 }
 ```
+
+### Slide-over Setup Card
+
+```swift
+import CornucopiaSUI
+import SwiftUI
+
+struct PairingPrompt: View {
+    @State private var isPairingVisible = false
+
+    var body: some View {
+        Button("Pair Adapter") {
+            isPairingVisible = true
+        }
+        .CC_slideOverCard(
+            isPresented: $isPairingVisible,
+            style: CC_SlideOverCardStyle(surfaceStyle: .standard, accentTint: .green)
+        ) {
+            VStack(spacing: 16) {
+                Text("OBD Adapter Found")
+                    .font(.title3.bold())
+
+                Text("Keep the ignition on while the connection is prepared.")
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+
+                Button {
+                    isPairingVisible = false
+                } label: {
+                    Label("Pair Adapter", systemImage: "link")
+                }
+                .buttonStyle(CC_SlideOverCardActionButtonStyle(.primary, tint: .green))
+            }
+            .frame(maxWidth: .infinity)
+        }
+    }
+}
+```
+
+Use `CC_slideOverCard(item:style:options:onDismiss:content:)` for multi-step
+setup flows. Content-height changes animate automatically, including cards that
+contain focused text fields. The default setup surface is intentionally opaque;
+enable `allowsBackgroundBleeding` only for app-specific glass previews.
 
 ### Confirmed Async Action
 
