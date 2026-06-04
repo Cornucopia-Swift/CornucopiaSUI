@@ -723,13 +723,13 @@ public struct VINKeyboardInput: View {
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
-    /// Model year derived offline from VIN position 10, available as soon as ten
-    /// characters are present and used as a fallback when the online decode omits it.
+    /// Model year derived offline once ten characters are present, used as a fallback
+    /// when the online decode omits it. Decodes from the full prefix so position 7
+    /// disambiguates the 30-year cycle (e.g. a 1991 vs a 2021 `M`) rather than guessing.
     private var offlineModelYear: String? {
         let vin = text.wrappedValue
         guard vin.count >= 10 else { return nil }
-        let character = vin[vin.index(vin.startIndex, offsetBy: 9)]
-        return VINTextField.modelYear(forPosition10: character)
+        return VINTextField.modelYear(for: vin)
     }
 
     private var vehicleAccessibilityLabel: String {

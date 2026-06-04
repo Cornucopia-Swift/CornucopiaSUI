@@ -84,8 +84,17 @@ public struct VINComponents: Equatable {
 // MARK: - Model Year
 
 extension VINTextField {
-    /// Model year for the position-10 character per the North American standard
-    /// (the 30-year cycle is resolved to its most recent occurrence).
+    /// Model year decoded from a (partial) VIN, disambiguated by position 7.
+    ///
+    /// Prefer this over ``modelYear(forPosition10:)`` whenever the surrounding VIN
+    /// characters are available: it reads position 7 to pick the correct 30-year window.
+    public static func modelYear(for vin: String) -> String? {
+        VIN(content: vin).modelYear.map(String.init)
+    }
+
+    /// Model year guessed from position 10 alone, assuming a position-7-letter
+    /// (2010–2039) VIN. Ambiguous by nature — use ``modelYear(for:)`` when the full VIN
+    /// prefix is known so the 30-year cycle can be resolved via position 7.
     public static func modelYear(forPosition10 character: Character) -> String? {
         VIN(content: String(repeating: "A", count: 9) + String(character)).modelYear.map(String.init)
     }
