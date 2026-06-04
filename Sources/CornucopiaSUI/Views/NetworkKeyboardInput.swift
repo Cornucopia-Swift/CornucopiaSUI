@@ -38,7 +38,7 @@ public struct IPv4KeyboardInput: View {
         _ text: Binding<String>,
         focused: FocusState<Bool>.Binding? = nil,
         validationState: Binding<NetworkAwareTextField.ValidationState>? = nil,
-        placeholder: String = "IPv4 address",
+        placeholder: String = CC_localized("IPv4 address"),
         submitSystemImage: String = "checkmark",
         autoFocus: Bool = false,
         isSubmitEnabled: Bool = true,
@@ -127,7 +127,7 @@ public struct IPv4KeyboardInput: View {
             }
             .buttonStyle(KeypadInlineButtonStyle(isEnabled: !text.isEmpty))
             .disabled(text.isEmpty)
-            .accessibilityLabel("Clear IPv4 address")
+            .accessibilityLabel(CC_localized("Clear IPv4 address"))
         }
         .background(displayBackground)
     }
@@ -227,7 +227,7 @@ public struct IPv4KeyboardInput: View {
             role: role,
             isEnabled: canAppendDigit(key),
             alternates: Self.maskAlternates[key] ?? [],
-            accessibilityLabel: "IPv4 \(key)",
+            accessibilityLabel: CC_localized("IPv4 \(key)"),
             onTap: { appendDigit(key) },
             onSelectAlternate: { selectOctet($0) }
         )
@@ -254,7 +254,7 @@ public struct IPv4KeyboardInput: View {
         }
         .buttonStyle(KeypadKeyStyle(role: NetworkKeyboardKeyRole.action))
         .disabled(text.isEmpty)
-        .accessibilityLabel("Delete")
+        .accessibilityLabel(CC_localized("Delete"))
     }
 
     private var submitKey: some View {
@@ -267,7 +267,7 @@ public struct IPv4KeyboardInput: View {
         }
         .buttonStyle(KeypadKeyStyle(role: canSubmit ? NetworkKeyboardKeyRole.submit : .action))
         .disabled(!canSubmit)
-        .accessibilityLabel("Submit IPv4 address")
+        .accessibilityLabel(CC_localized("Submit IPv4 address"))
     }
 
     private var canSubmit: Bool {
@@ -494,7 +494,7 @@ public struct MACKeyboardInput: View {
         focused: FocusState<Bool>.Binding? = nil,
         validationState: Binding<NetworkAwareTextField.ValidationState>? = nil,
         separatorStyle: SeparatorStyle = .colon,
-        placeholder: String = "MAC address",
+        placeholder: String = CC_localized("MAC address"),
         submitSystemImage: String = "checkmark",
         autoFocus: Bool = false,
         isSubmitEnabled: Bool = true,
@@ -585,7 +585,7 @@ public struct MACKeyboardInput: View {
             }
             .buttonStyle(KeypadInlineButtonStyle(isEnabled: !rawHex.isEmpty))
             .disabled(rawHex.isEmpty)
-            .accessibilityLabel("Clear MAC address")
+            .accessibilityLabel(CC_localized("Clear MAC address"))
         }
         .background(displayBackground)
     }
@@ -666,7 +666,7 @@ public struct MACKeyboardInput: View {
     }
 
     private func macKey(_ key: String, role: NetworkKeyboardKeyRole) -> some View {
-        KeypadKey(title: key, role: role, isEnabled: rawHex.count < 12, accessibilityLabel: "MAC \(key)") {
+        KeypadKey(title: key, role: role, isEnabled: rawHex.count < 12, accessibilityLabel: CC_localized("MAC \(key)")) {
             appendNibble(key)
         }
     }
@@ -681,7 +681,7 @@ public struct MACKeyboardInput: View {
         }
         .buttonStyle(KeypadKeyStyle(role: NetworkKeyboardKeyRole.action))
         .disabled(rawHex.isEmpty)
-        .accessibilityLabel("Delete")
+        .accessibilityLabel(CC_localized("Delete"))
     }
 
     private var submitKey: some View {
@@ -694,7 +694,7 @@ public struct MACKeyboardInput: View {
         }
         .buttonStyle(KeypadKeyStyle(role: canSubmit ? NetworkKeyboardKeyRole.submit : .action))
         .disabled(!canSubmit)
-        .accessibilityLabel("Submit MAC address")
+        .accessibilityLabel(CC_localized("Submit MAC address"))
     }
 
     private var rawHex: String {

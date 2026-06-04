@@ -20,3 +20,21 @@
 "Valid VIN, check digit warning" = "Gültige FIN, Prüfziffer-Warnung";
 "Invalid characters" = "Ungültige Zeichen";
 "VIN too long" = "FIN zu lang";
+
+/* Hex keypad */
+"Hex payload" = "Hex-Daten";
+"Clear hex payload" = "Hex-Daten löschen";
+"Hex %@" = "Hex %@";
+"Delete" = "Löschen";
+
+/* IPv4 keypad */
+"IPv4 address" = "IPv4-Adresse";
+"Clear IPv4 address" = "IPv4-Adresse löschen";
+"Submit IPv4 address" = "IPv4-Adresse bestätigen";
+"IPv4 %@" = "IPv4 %@";
+
+/* MAC keypad */
+"MAC address" = "MAC-Adresse";
+"Clear MAC address" = "MAC-Adresse löschen";
+"Submit MAC address" = "MAC-Adresse bestätigen";
+"MAC %@" = "MAC %@";

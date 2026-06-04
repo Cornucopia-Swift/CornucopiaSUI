@@ -69,7 +69,7 @@ public struct HexKeyboardInput: View {
     ///   - onSubmit: Called when the user taps the submit key or presses Return.
     public init(
         _ text: Binding<String>,
-        placeholder: String = "Hex payload",
+        placeholder: String = CC_localized("Hex payload"),
         submitSystemImage: String = "paperplane.fill",
         showsSubmitKey: Bool = true,
         returnKey: ReturnKey? = nil,
@@ -153,7 +153,7 @@ public struct HexKeyboardInput: View {
             }
             .buttonStyle(KeypadInlineButtonStyle(isEnabled: !text.isEmpty))
             .disabled(text.isEmpty)
-            .accessibilityLabel("Clear hex payload")
+            .accessibilityLabel(CC_localized("Clear hex payload"))
         }
         .background(displayBackground)
     }
@@ -243,7 +243,7 @@ public struct HexKeyboardInput: View {
     }
 
     private func hexKey(_ key: String, role: HexKeyboardKeyRole = .digit) -> some View {
-        KeypadKey(title: key, role: role, accessibilityLabel: "Hex \(key)") {
+        KeypadKey(title: key, role: role, accessibilityLabel: CC_localized("Hex \(key)")) {
             append(key)
         }
     }
@@ -258,7 +258,7 @@ public struct HexKeyboardInput: View {
         }
         .buttonStyle(KeypadKeyStyle(role: HexKeyboardKeyRole.action))
         .disabled(text.isEmpty)
-        .accessibilityLabel("Delete")
+        .accessibilityLabel(CC_localized("Delete"))
     }
 
     private var returnKeyButton: some View {

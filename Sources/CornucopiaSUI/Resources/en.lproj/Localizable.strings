@@ -20,3 +20,21 @@
 "Valid VIN, check digit warning" = "Valid VIN, check digit warning";
 "Invalid characters" = "Invalid characters";
 "VIN too long" = "VIN too long";
+
+/* Hex keypad */
+"Hex payload" = "Hex payload";
+"Clear hex payload" = "Clear hex payload";
+"Hex %@" = "Hex %@";
+"Delete" = "Delete";
+
+/* IPv4 keypad */
+"IPv4 address" = "IPv4 address";
+"Clear IPv4 address" = "Clear IPv4 address";
+"Submit IPv4 address" = "Submit IPv4 address";
+"IPv4 %@" = "IPv4 %@";
+
+/* MAC keypad */
+"MAC address" = "MAC address";
+"Clear MAC address" = "Clear MAC address";
+"Submit MAC address" = "Submit MAC address";
+"MAC %@" = "MAC %@";
