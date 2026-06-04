@@ -141,7 +141,7 @@ The four keypad widgets (`HexKeyboardInput`, `VINKeyboardInput`, `IPv4KeyboardIn
 
 - The decoder is **always queried** — NHTSA frequently resolves make/year (and sometimes model) even for non-US VINs, so there is no US-only gating.
 - Decoding starts at **10 characters** (VIN positions 1–10 carry make/descriptor/model-year; only the serial number follows). `.task(id:)` debounces edits and cancels stale lookups.
-- **Model year is shown offline immediately** from position 10 via `VINTextField.modelYear(forPosition10:)`, then overwritten by the online value when present. Make falls back to the offline WMI manufacturer; model and vehicle type are online-only.
+- **Model year is shown offline immediately** via `VINTextField.modelYear(for:)`, which decodes from the full typed prefix so position 7 disambiguates the 30-year cycle (e.g. a 1991 vs a 2021 `M`); the online value overwrites it when present. (`modelYear(forPosition10:)` remains as the ambiguous position-10-only guess.) Make falls back to the offline WMI manufacturer; model and vehicle type are online-only.
 - The vehicle widget shares the analysis column with the offline country/manufacturer preview: identity while typing, vehicle once ≥10 characters are present.
 
 #### Offline WMI data stance
