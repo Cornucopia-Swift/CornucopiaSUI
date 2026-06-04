@@ -38,3 +38,19 @@
 "Clear MAC address" = "Clear MAC address";
 "Submit MAC address" = "Submit MAC address";
 "MAC %@" = "MAC %@";
+
+/* VINTextField: status titles, breakdown and help text */
+"Empty" = "Empty";
+"Incomplete VIN" = "Incomplete VIN";
+"Invalid Characters" = "Invalid Characters";
+"Too Long" = "Too Long";
+"VIN Breakdown" = "VIN Breakdown";
+"Model Year: %@" = "Model Year: %@";
+"Check digit mismatch (expected: %@)" = "Check digit mismatch (expected: %@)";
+"Partial VIN (%lld characters remaining)" = "Partial VIN (%lld characters remaining)";
+"Vehicle Identification Number (VIN) - 17 characters" = "Vehicle Identification Number (VIN) - 17 characters";
+"Enter %lld more characters to complete VIN" = "Enter %lld more characters to complete VIN";
+"VIN cannot contain I, O, or Q characters" = "VIN cannot contain I, O, or Q characters";
+"VIN must be exactly 17 characters" = "VIN must be exactly 17 characters";
+"Valid VIN with correct check digit" = "Valid VIN with correct check digit";
+"Check digit validation is optional in some regions" = "Check digit validation is optional in some regions";

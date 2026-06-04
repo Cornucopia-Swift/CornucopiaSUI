@@ -151,12 +151,12 @@ public struct VINTextField: View {
         
         var title: String {
             switch self {
-            case .empty: "Empty"
-            case .incomplete: "Incomplete VIN"
-            case .invalidCharacters: "Invalid Characters"
-            case .tooLong: "Too Long"
-            case .valid: "Valid VIN"
-            case .validWithCheckDigitWarning: "Valid VIN"
+            case .empty: CC_localized("Empty")
+            case .incomplete: CC_localized("Incomplete VIN")
+            case .invalidCharacters: CC_localized("Invalid Characters")
+            case .tooLong: CC_localized("Too Long")
+            case .valid: CC_localized("Valid VIN")
+            case .validWithCheckDigitWarning: CC_localized("Valid VIN")
             }
         }
         
@@ -295,7 +295,7 @@ public struct VINTextField: View {
             // VIN breakdown with spacing
             if case .valid(_, let components) = validationState {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("VIN Breakdown")
+                    Text(CC_localized("VIN Breakdown"))
                         .font(.caption.weight(.medium))
                         .foregroundStyle(.secondary)
 
@@ -310,7 +310,7 @@ public struct VINTextField: View {
                             Image(systemName: "calendar")
                                 .foregroundStyle(.orange)
                                 .font(.caption)
-                            Text("Model Year: \(modelYear)")
+                            Text(CC_localized("Model Year: \(modelYear)"))
                                 .font(.footnote)
                                 .foregroundStyle(.primary)
                         }
@@ -318,7 +318,7 @@ public struct VINTextField: View {
                 }
             } else if case .validWithCheckDigitWarning(_, let components, let expectedCheckDigit) = validationState {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("VIN Breakdown")
+                    Text(CC_localized("VIN Breakdown"))
                         .font(.caption.weight(.medium))
                         .foregroundStyle(.secondary)
 
@@ -333,7 +333,7 @@ public struct VINTextField: View {
                             Image(systemName: "calendar")
                                 .foregroundStyle(.orange)
                                 .font(.caption)
-                            Text("Model Year: \(modelYear)")
+                            Text(CC_localized("Model Year: \(modelYear)"))
                                 .font(.footnote)
                                 .foregroundStyle(.primary)
                         }
@@ -343,7 +343,7 @@ public struct VINTextField: View {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundStyle(.yellow)
                             .font(.caption)
-                        Text("Check digit mismatch (expected: \(String(expectedCheckDigit)))")
+                        Text(CC_localized("Check digit mismatch (expected: \(String(expectedCheckDigit)))"))
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
@@ -352,7 +352,7 @@ public struct VINTextField: View {
             } else if case .incomplete(let vin, let remaining) = validationState, !vin.isEmpty {
                 // Show partial breakdown for incomplete VIN
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Partial VIN (\(remaining) characters remaining)")
+                    Text(CC_localized("Partial VIN (\(remaining) characters remaining)"))
                         .font(.caption.weight(.medium))
                         .foregroundStyle(.secondary)
                     
@@ -377,17 +377,17 @@ public struct VINTextField: View {
             Group {
                 switch validationState {
                 case .empty:
-                    Text("Vehicle Identification Number (VIN) - 17 characters")
+                    Text(CC_localized("Vehicle Identification Number (VIN) - 17 characters"))
                 case .incomplete(_, let remaining):
-                    Text("Enter \(remaining) more character\(remaining == 1 ? "" : "s") to complete VIN")
+                    Text(CC_localized("Enter \(remaining) more characters to complete VIN"))
                 case .invalidCharacters:
-                    Text("VIN cannot contain I, O, or Q characters")
+                    Text(CC_localized("VIN cannot contain I, O, or Q characters"))
                 case .tooLong:
-                    Text("VIN must be exactly 17 characters")
+                    Text(CC_localized("VIN must be exactly 17 characters"))
                 case .valid:
-                    Text("Valid VIN with correct check digit")
+                    Text(CC_localized("Valid VIN with correct check digit"))
                 case .validWithCheckDigitWarning:
-                    Text("Check digit validation is optional in some regions")
+                    Text(CC_localized("Check digit validation is optional in some regions"))
                 }
             }
             .font(.footnote)

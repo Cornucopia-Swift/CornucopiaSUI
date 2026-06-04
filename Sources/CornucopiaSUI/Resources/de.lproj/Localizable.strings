@@ -38,3 +38,19 @@
 "Clear MAC address" = "MAC-Adresse löschen";
 "Submit MAC address" = "MAC-Adresse bestätigen";
 "MAC %@" = "MAC %@";
+
+/* VINTextField: status titles, breakdown and help text */
+"Empty" = "Leer";
+"Incomplete VIN" = "Unvollständige FIN";
+"Invalid Characters" = "Ungültige Zeichen";
+"Too Long" = "Zu lang";
+"VIN Breakdown" = "FIN-Aufschlüsselung";
+"Model Year: %@" = "Modelljahr: %@";
+"Check digit mismatch (expected: %@)" = "Prüfziffer stimmt nicht (erwartet: %@)";
+"Partial VIN (%lld characters remaining)" = "Teil-FIN (noch %lld Zeichen)";
+"Vehicle Identification Number (VIN) - 17 characters" = "Fahrzeug-Identifizierungsnummer (FIN) – 17 Zeichen";
+"Enter %lld more characters to complete VIN" = "Noch %lld Zeichen bis zur vollständigen FIN";
+"VIN cannot contain I, O, or Q characters" = "FIN darf kein I, O oder Q enthalten";
+"VIN must be exactly 17 characters" = "FIN muss genau 17 Zeichen haben";
+"Valid VIN with correct check digit" = "Gültige FIN mit korrekter Prüfziffer";
+"Check digit validation is optional in some regions" = "Prüfziffer-Validierung ist in manchen Regionen optional";
