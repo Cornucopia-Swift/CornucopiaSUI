@@ -30,7 +30,7 @@ enum DemoSection: String, CaseIterable, Identifiable {
             case .inputs:
                 [.hexKeyboard, .vinKeyboard, .vinKeyboardInputMethod, .networkKeyboards, .textFields]
             case .controls:
-                [.textFieldStepper, .busyButtons, .dialogs]
+                [.textFieldStepper, .busyButtons, .slideOverCard, .dialogs]
             case .textAndMotion:
                 [.marquee, .blending]
             case .modifiers:
@@ -49,6 +49,7 @@ enum DemoItem: String, CaseIterable, Identifiable, Hashable {
     case textFields
     case textFieldStepper
     case busyButtons
+    case slideOverCard
     case dialogs
     case marquee
     case blending
@@ -67,6 +68,7 @@ enum DemoItem: String, CaseIterable, Identifiable, Hashable {
             case .textFields: "Validated Text Fields"
             case .textFieldStepper: "Text Field Stepper"
             case .busyButtons: "Busy Buttons"
+            case .slideOverCard: "Slide-over Card"
             case .dialogs: "Dialogs & Capsules"
             case .marquee: "Marquee"
             case .blending: "Blending Labels"
@@ -85,6 +87,7 @@ enum DemoItem: String, CaseIterable, Identifiable, Hashable {
             case .textFields: "Styled, network-aware and VIN-aware text entry."
             case .textFieldStepper: "Editable numeric stepper with range clamping and press-and-hold controls."
             case .busyButtons: "Async actions, indicators and confirmation flows."
+            case .slideOverCard: "Apple-style setup cards with drag, tap and item-driven presentation."
             case .dialogs: "Custom confirmation dialog and transient notification capsule."
             case .marquee: "Single-line overflow labels and ticker content."
             case .blending: "Independent and synchronized cycling labels."
@@ -103,6 +106,7 @@ enum DemoItem: String, CaseIterable, Identifiable, Hashable {
             case .textFields: "text.cursor"
             case .textFieldStepper: "plusminus.circle"
             case .busyButtons: "button.programmable"
+            case .slideOverCard: "rectangle.bottomthird.inset.filled"
             case .dialogs: "bubble.left.and.exclamationmark.bubble.right"
             case .marquee: "text.alignleft"
             case .blending: "shuffle"
@@ -121,6 +125,7 @@ enum DemoItem: String, CaseIterable, Identifiable, Hashable {
             case .textFields: .indigo
             case .textFieldStepper: .blue
             case .busyButtons: .orange
+            case .slideOverCard: .blue
             case .dialogs: .red
             case .marquee: .cyan
             case .blending: .purple
@@ -147,6 +152,8 @@ enum DemoItem: String, CaseIterable, Identifiable, Hashable {
                 TextFieldStepperDemoView()
             case .busyButtons:
                 BusyButtonsDemoView()
+            case .slideOverCard:
+                SlideOverCardDemoView()
             case .dialogs:
                 DialogsDemoView()
             case .marquee:
