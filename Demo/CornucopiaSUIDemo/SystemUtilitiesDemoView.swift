@@ -5,10 +5,13 @@
 
 import CornucopiaSUI
 import Network
+import StoreKit
 import SwiftUI
 import UIKit
 
 struct SystemUtilitiesDemoView: View {
+    @Environment(\.requestReview) private var requestReview
+
     @StateObject private var reachability = ObservableReachability.shared
     @StateObject private var localNetworkAuthorization = ObservableLocalNetworkAuthorization.shared
     @StateObject private var busyness = ObservableBusyness(debounceInterval: .milliseconds(180))
@@ -16,6 +19,18 @@ struct SystemUtilitiesDemoView: View {
     @State private var selectedImage = UIImage(systemName: "photo") ?? UIImage()
     @State private var showImagePicker = false
     @State private var idleTimerLog = "not run"
+    @State private var reviewPrompter = CCAppReviewPrompter(
+        configuration: .init(
+            storageKeyPrefix: "CornucopiaSUIDemo.AppReview",
+            minimumSignificantEvents: 3,
+            minimumDaysSinceFirstSeen: 0,
+            minimumDaysBetweenRequests: 0,
+            maximumRequestsPerVersion: 1,
+            currentVersion: "demo"
+        )
+    )
+    @State private var reviewEventCount = 0
+    @State private var reviewRequestCount = 0
 
     var body: some View {
         DemoScroll {
@@ -47,6 +62,30 @@ struct SystemUtilitiesDemoView: View {
                         runBusynessDemo()
                     }
                     .buttonStyle(.borderedProminent)
+                }
+            }
+
+            DemoPanel("CCAppReviewPrompter", subtitle: "Shared gatekeeper for StoreKit review requests after positive user-visible outcomes.") {
+                VStack(alignment: .leading, spacing: 12) {
+                    DemoMetric(title: "Recorded demo events", value: "\(reviewEventCount)")
+                    DemoMetric(title: "Request closures called", value: "\(reviewRequestCount)")
+                    DemoMetric(title: "Eligible now", value: reviewPrompter.isEligibleForReviewRequest ? "yes" : "no")
+
+                    HStack {
+                        Button("Record successful outcome") {
+                            recordReviewDemoEvent()
+                        }
+                        .buttonStyle(.borderedProminent)
+
+                        Button("Reset demo state") {
+                            resetReviewDemo()
+                        }
+                        .buttonStyle(.bordered)
+                    }
+
+                    Text("The demo calls SwiftUI's requestReview action after the third event. iOS may still suppress the visible system sheet.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
 
@@ -124,6 +163,20 @@ struct SystemUtilitiesDemoView: View {
             try? await Task.sleep(for: .milliseconds(1_100))
             busyness.leaveBusy()
         }
+    }
+
+    private func recordReviewDemoEvent() {
+        reviewEventCount += 1
+        reviewPrompter.recordSignificantEvent {
+            reviewRequestCount += 1
+            requestReview()
+        }
+    }
+
+    private func resetReviewDemo() {
+        reviewPrompter.reset()
+        reviewEventCount = 0
+        reviewRequestCount = 0
     }
 }
 
