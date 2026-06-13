@@ -12,6 +12,7 @@ struct SlideOverCardDemoView: View {
     @State private var showBleedingPreviewCard = false
     @State private var showFullWidthCard = false
     @State private var showRequiredCard = false
+    @State private var showActionStylesCard = false
     @State private var showTextFieldCard = false
     @State private var activeSetupStep: SetupStep?
     @State private var adapterName = ""
@@ -100,6 +101,15 @@ struct SlideOverCardDemoView: View {
                         .demoID("slideover.required")
 
                         Button {
+                            showActionStylesCard = true
+                            lastEvent = "Opened action styles"
+                        } label: {
+                            Label("Actions", systemImage: "square.stack.3d.up")
+                        }
+                        .buttonStyle(.bordered)
+                        .demoID("slideover.actions")
+
+                        Button {
                             showTextFieldCard = true
                             lastEvent = "Opened text-field setup"
                         } label: {
@@ -122,6 +132,7 @@ struct SlideOverCardDemoView: View {
                     DemoPill("Tap outside to dismiss", color: .teal)
                     DemoPill("Item binding animates between setup steps", color: .indigo)
                     DemoPill("Required cards can disable tap and drag dismissal", color: .orange)
+                    DemoPill("Grabber and dismiss button can be hidden for a custom one", color: .indigo)
                     DemoPill("Text fields keep the card above the keyboard", color: .green)
                 }
             }
@@ -214,6 +225,28 @@ struct SlideOverCardDemoView: View {
             }
         }
         .CC_slideOverCard(
+            isPresented: $showActionStylesCard,
+            style: CC_SlideOverCardStyle(surfaceStyle: .standard, accentTint: .indigo),
+            options: [.hideGrabber, .hideDismissButton],
+            onDismiss: {
+                lastEvent = "Action styles dismissed"
+            }
+        ) {
+            ActionStylesCard(
+                primaryAction: {
+                    showActionStylesCard = false
+                    lastEvent = "Primary action tapped"
+                },
+                secondaryAction: {
+                    lastEvent = "Secondary action tapped"
+                },
+                closeAction: {
+                    showActionStylesCard = false
+                    lastEvent = "Action styles closed"
+                }
+            )
+        }
+        .CC_slideOverCard(
             isPresented: $showTextFieldCard,
             style: CC_SlideOverCardStyle(surfaceStyle: .standard, accentTint: .green),
             options: [.disableTapToDismiss],
@@ -254,6 +287,9 @@ struct SlideOverCardDemoView: View {
             case "required":
                 showRequiredCard = true
                 lastEvent = "Opened required step from environment"
+            case "actions":
+                showActionStylesCard = true
+                lastEvent = "Opened action styles from environment"
             case "textField":
                 showTextFieldCard = true
                 lastEvent = "Opened text-field setup from environment"
@@ -474,6 +510,56 @@ private struct RequiredStepCard: View {
             }
             .buttonStyle(CC_SlideOverCardActionButtonStyle(.primary, tint: .orange))
             .demoID("slideover.required.accept")
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+private struct ActionStylesCard: View {
+    let primaryAction: () -> Void
+    let secondaryAction: () -> Void
+    let closeAction: () -> Void
+
+    var body: some View {
+        VStack(spacing: 18) {
+            HStack {
+                Spacer()
+                CC_SlideOverCardDismissButton(action: closeAction)
+                    .demoID("slideover.actions.dismiss")
+            }
+
+            SetupGlyph(systemName: "square.stack.3d.up.fill", color: .indigo)
+
+            VStack(spacing: 8) {
+                Text("Action Prominence")
+                    .font(.title3.weight(.bold))
+                    .multilineTextAlignment(.center)
+
+                Text("The default grabber and dismiss button are hidden here, so the card supplies its own CC_SlideOverCardDismissButton and shows all three button prominences.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            VStack(spacing: 9) {
+                Button(action: primaryAction) {
+                    Label("Primary", systemImage: "checkmark")
+                }
+                .buttonStyle(CC_SlideOverCardActionButtonStyle(.primary, tint: .indigo))
+                .demoID("slideover.actions.primary")
+
+                Button(action: secondaryAction) {
+                    Label("Secondary", systemImage: "wrench.and.screwdriver")
+                }
+                .buttonStyle(CC_SlideOverCardActionButtonStyle(.secondary, tint: .indigo))
+                .demoID("slideover.actions.secondary")
+
+                Button(action: closeAction) {
+                    Label("Plain", systemImage: "xmark")
+                }
+                .buttonStyle(CC_SlideOverCardActionButtonStyle(.plain))
+                .demoID("slideover.actions.plain")
+            }
         }
         .frame(maxWidth: .infinity)
     }

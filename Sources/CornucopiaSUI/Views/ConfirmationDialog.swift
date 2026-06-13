@@ -577,7 +577,7 @@ private struct RecessedTextFieldStyle: TextFieldStyle {
             ) {
                 VStack(spacing: 12) {
                     TextField("Type something...", text: $liveEditText)
-                        .onChange(of: liveEditText) { newValue in
+                        .onChange(of: liveEditText) { _, newValue in
                             characterCount = newValue.count
                             isValidInput = newValue.count >= 3 && !newValue.trimmingCharacters(in: .whitespaces).isEmpty
                         }

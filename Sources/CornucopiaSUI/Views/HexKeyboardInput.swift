@@ -108,7 +108,7 @@ public struct HexKeyboardInput: View {
             }
             normalizeBoundText()
         }
-        .onChange(of: text) { _ in
+        .onChange(of: text) {
             normalizeBoundText()
         }
         .CC_keypadHardwareInput(

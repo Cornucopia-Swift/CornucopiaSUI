@@ -45,7 +45,7 @@ public struct Blink: ViewModifier {
             .onDisappear {
                 stopBlinking()
             }
-            .onChange(of: isEnabled) { newValue in
+            .onChange(of: isEnabled) { _, newValue in
                 if newValue {
                     startBlinking()
                 } else {
@@ -53,12 +53,12 @@ public struct Blink: ViewModifier {
                     isVisible = true
                 }
             }
-            .onChange(of: duration) { _ in
+            .onChange(of: duration) {
                 if isEnabled {
                     startBlinking()
                 }
             }
-            .onChange(of: repeatCount) { _ in
+            .onChange(of: repeatCount) {
                 if isEnabled {
                     startBlinking()
                 }

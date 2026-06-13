@@ -91,7 +91,7 @@ public struct MACKeyboardInput: View {
             normalizeBoundText()
             isActiveSlotPulsing = true
         }
-        .onChange(of: text) { _ in
+        .onChange(of: text) {
             normalizeBoundText()
         }
         .CC_keypadHardwareInput(

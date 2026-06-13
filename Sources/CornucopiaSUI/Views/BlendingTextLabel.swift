@@ -27,7 +27,7 @@ public struct BlendingTextLabel: View {
             .onDisappear {
                 stopBlending()
             }
-            .onChange(of: texts) { _ in
+            .onChange(of: texts) {
                 guard texts.count > 1 else {
                     stopBlending()
                     return

@@ -302,11 +302,6 @@ private extension View {
         onEditingChanged: @escaping (Bool) -> Void,
         onValueChanged: @escaping (Double) -> Void
     ) -> some View {
-        #if os(macOS)
-        self
-            .onChange(of: isEditing, perform: onEditingChanged)
-            .onChange(of: value, perform: onValueChanged)
-        #else
         self
             .onChange(of: isEditing) { _, newValue in
                 onEditingChanged(newValue)
@@ -314,7 +309,6 @@ private extension View {
             .onChange(of: value) { _, newValue in
                 onValueChanged(newValue)
             }
-        #endif
     }
 }
 

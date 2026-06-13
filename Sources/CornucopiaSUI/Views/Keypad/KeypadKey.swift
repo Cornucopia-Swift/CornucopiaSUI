@@ -47,7 +47,7 @@ struct KeypadKey<Role: KeypadKeyRole>: View {
         .disabled(!isEnabled)
         .accessibilityLabel(accessibilityLabel ?? title)
         .modifier(LongPressAlternates(enabled: hasAlternates, show: $showingAlternates, didLongPress: $didLongPress))
-        .onChange(of: showingAlternates) { presented in
+        .onChange(of: showingAlternates) { _, presented in
             if !presented { didLongPress = false }
         }
         .popover(isPresented: $showingAlternates) { alternatesPopover }

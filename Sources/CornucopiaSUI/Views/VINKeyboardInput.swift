@@ -234,10 +234,10 @@ public struct VINKeyboardInput: View {
         .task(id: decodeKey) {
             await decodeVehicleDetails()
         }
-        .onChange(of: text.wrappedValue) { _ in
+        .onChange(of: text.wrappedValue) {
             normalizeBoundText()
         }
-        .onChange(of: validationState) { newState in
+        .onChange(of: validationState) { _, newState in
             validationStateBinding?.wrappedValue = newState
         }
     }

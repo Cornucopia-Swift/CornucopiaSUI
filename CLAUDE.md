@@ -76,7 +76,7 @@ Custom view modifiers follow the pattern of creating a struct conforming to `Vie
 - View modifiers are suffixed with `Modifier` in the struct name
 
 ### Platform Support
-- iOS 17+, macOS 13+, tvOS 17+, watchOS 10+
+- iOS 18+, macOS 14+, tvOS 18+, watchOS 10+
 - Platform-specific code uses availability checks (e.g., `#available(iOS 16.0, *)`)
 
 ### Localization

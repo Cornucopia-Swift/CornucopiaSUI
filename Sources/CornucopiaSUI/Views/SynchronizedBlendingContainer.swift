@@ -91,7 +91,7 @@ public struct SynchronizedBlendingContainer: View {
                 )
             }
         }
-        .onChange(of: duration) { newDuration in
+        .onChange(of: duration) { _, newDuration in
             internalDuration = newDuration
         }
     }
@@ -128,13 +128,13 @@ private struct SyncedContainer: View {
                 lastCycle = group.cycle
             }
             .onDisappear { group.unsubscribe() }
-            .onChange(of: group.cycle) { newCycle in
+            .onChange(of: group.cycle) { _, newCycle in
                 guard count > 1, newCycle != lastCycle else { return }
                 let delta = newCycle - lastCycle
                 lastCycle = newCycle
                 localCurrentIndex = safeIndex(localCurrentIndex + delta, count: count)
             }
-            .onChange(of: builders.count) { newCount in
+            .onChange(of: builders.count) { _, newCount in
                 // Re-align if the number of builders changes (defensive)
                 localCurrentIndex = safeIndex(group.cycle, count: newCount)
                 lastCycle = group.cycle
@@ -190,13 +190,13 @@ private struct NonSyncedContainer: View {
                 start()
             }
             .onDisappear { stop() }
-            .onChange(of: builders.count) { newCount in
+            .onChange(of: builders.count) { _, newCount in
                 stop()
                 currentIndex = 0
                 opacity = 1.0
                 if newCount > 1 { start() }
             }
-            .onChange(of: duration) { _ in
+            .onChange(of: duration) {
                 guard count > 1 else { return }
                 stop()
                 start()
@@ -459,7 +459,7 @@ private struct NonSyncedContainer: View {
                             )
                     }
                     .CC_blendingSyncGroup("demo-sync", duration: max(0.1, duration))
-                    .onChange(of: duration) { newDuration in
+                    .onChange(of: duration) { _, newDuration in
                         BlendingSyncManager.shared.updateGroupDuration(id: "demo-sync", duration: max(0.1, newDuration))
                     }
                     .padding()

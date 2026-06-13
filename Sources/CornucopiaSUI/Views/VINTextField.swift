@@ -260,7 +260,7 @@ public struct VINTextField: View {
                 .keyboardType(.asciiCapable)
                 #endif
                 .font(.system(.body, design: .monospaced))
-                .onChange(of: text.wrappedValue) { newValue in
+                .onChange(of: text.wrappedValue) { _, newValue in
                     let filtered = String(newValue.uppercased().prefix(17).filter { isValidVINCharacter($0) })
                     if filtered != newValue {
                         text.wrappedValue = filtered
@@ -393,7 +393,7 @@ public struct VINTextField: View {
             .font(.footnote)
             .foregroundStyle(.secondary)
         }
-        .onChange(of: validationState) { newState in
+        .onChange(of: validationState) { _, newState in
             validationStateBinding?.wrappedValue = newState
         }
         .task {

@@ -6,7 +6,7 @@ let package = Package(
     name: "CornucopiaSUI",
     defaultLocalization: "en",
     platforms: [
-        .macOS(.v13),
+        .macOS(.v14),
         .iOS(.v18),
         .tvOS(.v18),
         .watchOS(.v10),

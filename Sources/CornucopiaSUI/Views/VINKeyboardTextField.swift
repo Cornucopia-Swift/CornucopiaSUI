@@ -83,7 +83,7 @@ public struct VINKeyboardTextField: View {
         .onAppear {
             normalizeAndValidate()
         }
-        .onChange(of: text) { _ in
+        .onChange(of: text) {
             normalizeAndValidate()
         }
     }
@@ -422,7 +422,7 @@ private struct UIKitVINKeyboardTextField: UIViewRepresentable {
             )
             .frame(maxWidth: 760)
             .frame(maxWidth: .infinity, alignment: .center)
-            .onChange(of: model.text) { newValue in
+            .onChange(of: model.text) { _, newValue in
                 onTextChange(newValue)
             }
         }
@@ -433,3 +433,17 @@ private struct UIKitVINKeyboardTextField: UIViewRepresentable {
     }
 }
 #endif
+
+#Preview("VINKeyboardTextField") {
+    @Previewable @State var vin = "WBA3A5C50CF256736"
+    @Previewable @State var validationState = VINTextField.ValidationState.empty
+
+    VStack(alignment: .leading, spacing: 16) {
+        VINKeyboardTextField($vin, validationState: $validationState, autoFocus: true)
+
+        LabeledContent("State", value: String(describing: validationState))
+            .font(.caption.monospaced())
+            .foregroundStyle(.secondary)
+    }
+    .padding()
+}

@@ -59,13 +59,13 @@ private struct SyncedContent: View {
             .onDisappear {
                 group.unsubscribe()
             }
-            .onChange(of: group.cycle) { newCycle in
+            .onChange(of: group.cycle) { _, newCycle in
                 guard texts.count > 1, newCycle != lastCycle else { return }
                 let delta = newCycle - lastCycle
                 lastCycle = newCycle
                 localCurrentIndex = mod(localCurrentIndex + delta, texts.count)
             }
-            .onChange(of: texts) { _ in
+            .onChange(of: texts) {
                 guard texts.count > 1 else { return }
                 // Re-align to current group cycle if texts change
                 localCurrentIndex = safeIndex(for: group.cycle)

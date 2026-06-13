@@ -67,17 +67,17 @@ public struct MarqueeText : View {
                             .fixedSize(horizontal: true, vertical: false)
                             .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .topLeading)
                     }
-                    .onChange(of: self.text, perform: { _ in
+                    .onChange(of: self.text) {
                         self.animate = geo.size.width < textSize.width
-                    })
+                    }
                     .clipped()
                     .frame(width: geo.size.width)
 
                 } else {
                     Text(self.text)
-                        .onChange(of: self.text, perform: { text in
+                        .onChange(of: self.text) {
                             self.animate = geo.size.width < textSize.width
-                        })
+                        }
                         .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: alignment)
                 }
             }

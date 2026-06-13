@@ -658,11 +658,11 @@ public struct NetworkAwareTextField: View {
             .font(.footnote)
             .foregroundStyle(.secondary)
         }
-        .onChange(of: text.wrappedValue) { newValue in
+        .onChange(of: text.wrappedValue) { _, newValue in
             print("🔄 Text changed to: '\(newValue)'")
             validator.validate(newValue)
         }
-        .onChange(of: validator.validationState) { newState in
+        .onChange(of: validator.validationState) { _, newState in
             validationStateBinding?.wrappedValue = newState
         }
     }
@@ -775,7 +775,7 @@ struct AppConfigDemo: View {
                 .onAppear {
                     print("🔍 Initial validation state: \(textField.validator.validationState)")
                 }
-                .onChange(of: textField.validator.validationState) { state in
+                .onChange(of: textField.validator.validationState) { _, state in
                     print("🔍 Validation state changed: \(state)")
                 }
             
