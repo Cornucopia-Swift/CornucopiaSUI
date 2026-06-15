@@ -153,6 +153,8 @@ public struct CC_SlideOverCardActionButtonStyle: ButtonStyle {
 public struct CC_SlideOverCardDismissButton: View {
     private let action: () -> Void
 
+    @Environment(\.colorScheme) private var colorScheme
+
     public init(action: @escaping () -> Void) {
         self.action = action
     }
@@ -163,11 +165,48 @@ public struct CC_SlideOverCardDismissButton: View {
                 .font(.system(size: 13, weight: .bold))
                 .frame(width: 30, height: 30)
                 .foregroundStyle(.secondary)
-                .background(.quaternary, in: Circle())
                 .contentShape(Circle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(SlideOverCardDismissButtonStyle(colorScheme: colorScheme))
         .accessibilityLabel("Dismiss")
+    }
+}
+
+private struct SlideOverCardDismissButtonStyle: ButtonStyle {
+    let colorScheme: ColorScheme
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(colorScheme == .dark ? 0.06 : 0.42),
+                                Color.primary.opacity(colorScheme == .dark ? 0.14 : 0.075)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.26 : 0.08), radius: 8, x: 0, y: 3)
+            }
+            .overlay {
+                Circle()
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(colorScheme == .dark ? 0.09 : 0.56),
+                                Color.black.opacity(colorScheme == .dark ? 0.22 : 0.08)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 0.7
+                    )
+            }
+            .scaleEffect(configuration.isPressed ? 0.92 : 1)
+            .animation(.easeOut(duration: 0.10), value: configuration.isPressed)
     }
 }
 
@@ -356,8 +395,19 @@ private struct SlideOverCardContainer<CardContent: View>: View {
         VStack(spacing: 0) {
             if !options.contains(.hideGrabber) {
                 Capsule(style: .continuous)
-                    .fill(.secondary.opacity(colorScheme == .dark ? 0.42 : 0.24))
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(colorScheme == .dark ? 0.08 : 0.52),
+                                Color.secondary.opacity(colorScheme == .dark ? 0.48 : 0.26),
+                                Color.black.opacity(colorScheme == .dark ? 0.20 : 0.05)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
                     .frame(width: 36, height: 5)
+                    .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.28 : 0.08), radius: 2, y: 1)
                     .padding(.top, 10)
                     .padding(.bottom, 2)
             }
