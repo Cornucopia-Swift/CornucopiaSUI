@@ -31,6 +31,7 @@ struct ModifierLabDemoView: View {
     @State private var firstAppearCount = 0
     @State private var measuredSize: CGSize = .zero
     @State private var showAutoHeightSheet = false
+    @State private var autoHeightSheetText = "Tap the button to fill this label with a random number of lines."
     @State private var taskTicks = 0
 
     var body: some View {
@@ -104,16 +105,39 @@ struct ModifierLabDemoView: View {
             VStack(alignment: .leading, spacing: 12) {
                 Text("Auto-height Sheet")
                     .font(.headline)
-                Text("This content is intentionally short so the measured presentation detent can hug it.")
+                Text(autoHeightSheetText)
                     .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Button("Randomize label lines") {
+                    autoHeightSheetText = randomAutoHeightSheetText()
+                }
+                .buttonStyle(.bordered)
                 Button("Close") {
                     showAutoHeightSheet = false
                 }
                 .buttonStyle(.borderedProminent)
             }
             .padding()
+            .frame(maxWidth: 420)
             .CC_presentationDetentAutoHeight()
         }
+    }
+
+    private func randomAutoHeightSheetText() -> String {
+        let lines = [
+            "Negotiating adapter capabilities.",
+            "Reading current configuration.",
+            "Preparing diagnostic session.",
+            "Checking voltage before programming.",
+            "Uploading block metadata.",
+            "Waiting for ECU response.",
+            "Verifying transfer checksum.",
+            "Finalizing the operation."
+        ]
+        let lineCount = Int.random(in: 1...lines.count)
+        return lines.shuffled().prefix(lineCount).joined(separator: "\n")
     }
 }
 
