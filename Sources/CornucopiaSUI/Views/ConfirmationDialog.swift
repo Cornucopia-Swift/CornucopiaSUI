@@ -178,10 +178,7 @@ struct ConfirmationDialogView: View {
     @ViewBuilder
     private var cancelSeparator: some View {
         if background.style != .plain {
-            Rectangle()
-                .fill(Color.clear)
-                .frame(height: 8)
-                .background(separatorBand)
+            separatorRuler
         } else {
             Divider()
                 .background(separatorColor)
@@ -201,7 +198,12 @@ struct ConfirmationDialogView: View {
                 .frame(maxWidth: .infinity)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(
+            ConfirmationDialogCancelButtonStyle(
+                colorScheme: colorScheme,
+                isPlain: background.style == .plain
+            )
+        )
     }
 
 
@@ -249,19 +251,28 @@ struct ConfirmationDialogView: View {
         Color.clear
     }
 
-    private var separatorBand: some View {
-        ZStack {
-            separatorColor.opacity(colorScheme == .dark ? 0.9 : 0.45)
+    private var separatorRuler: some View {
+        ZStack(alignment: .top) {
             LinearGradient(
                 colors: [
-                    Color.black.opacity(colorScheme == .dark ? 0.32 : 0.10),
-                    Color.clear,
-                    Color.white.opacity(colorScheme == .dark ? 0.02 : 0.16)
+                    Color.black.opacity(colorScheme == .dark ? 0.34 : 0.11),
+                    separatorColor.opacity(colorScheme == .dark ? 0.45 : 0.20),
+                    Color.white.opacity(colorScheme == .dark ? 0.04 : 0.34)
                 ],
                 startPoint: .top,
                 endPoint: .bottom
             )
+
+            Rectangle()
+                .fill(Color.black.opacity(colorScheme == .dark ? 0.32 : 0.10))
+                .frame(height: 0.7)
+
+            Rectangle()
+                .fill(Color.white.opacity(colorScheme == .dark ? 0.06 : 0.42))
+                .frame(height: 0.8)
+                .offset(y: 1.4)
         }
+        .frame(height: 3)
     }
 
     private var inputFieldBackground: some View {
@@ -309,6 +320,32 @@ struct ConfirmationDialogView: View {
             .animation(.easeInOut(duration: 0.18), value: isInputFocused)
     }
 
+}
+
+private struct ConfirmationDialogCancelButtonStyle: ButtonStyle {
+    let colorScheme: ColorScheme
+    let isPlain: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background {
+                if !isPlain {
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(colorScheme == .dark ? 0.035 : 0.18),
+                            Color.black.opacity(colorScheme == .dark ? 0.18 : 0.035)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                }
+            }
+            .overlay {
+                if configuration.isPressed {
+                    Color.primary.opacity(colorScheme == .dark ? 0.10 : 0.055)
+                }
+            }
+    }
 }
 
 private extension View {
