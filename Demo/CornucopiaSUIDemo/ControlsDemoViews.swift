@@ -89,7 +89,9 @@ struct BusyButtonsDemoView: View {
     @State private var modernBusy = false
     @State private var pulseBusy = false
     @State private var orbitBusy = false
-    @State private var log: [String] = []
+    @State private var progressBusy = false
+    @State private var inlineProgress: Double? = 0
+    @State private var log: [BusyButtonsDemoLogEntry] = []
 
     var body: some View {
         DemoScroll {
@@ -132,7 +134,7 @@ struct BusyButtonsDemoView: View {
                             role: .destructive,
                             indicatorStyle: .modern,
                             onError: { error in
-                                log.append("Error handled: \(error.localizedDescription)")
+                                log.append(BusyButtonsDemoLogEntry(message: "Error handled: \(error.localizedDescription)"))
                             }
                         ) {
                             try await Task.sleep(for: .milliseconds(450))
@@ -157,13 +159,33 @@ struct BusyButtonsDemoView: View {
                 }
             }
 
+            DemoPanel("Inline Progress", subtitle: "A determinate progress bar can replace the busy indicator for work with measurable steps.") {
+                VStack(alignment: .leading, spacing: 12) {
+                    GenericBusyButton(
+                        "Program ECU",
+                        isBusy: $progressBusy,
+                        progress: $inlineProgress
+                    ) {
+                        await runInlineProgressDemo()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .demoID("busy.inlineProgress")
+
+                    DemoMetric(
+                        title: "Progress",
+                        value: (inlineProgress ?? 0).formatted(.percent.precision(.fractionLength(0)))
+                    )
+                }
+            }
+
             DemoPanel("Action Log") {
                 if log.isEmpty {
                     Text("Run an action to add a log entry.")
                         .foregroundStyle(.secondary)
                 } else {
-                    ForEach(log, id: \.self) { entry in
-                        Text(entry)
+                    ForEach(log) { entry in
+                        Text(entry.message)
                             .font(.system(.body, design: .monospaced))
                     }
                 }
@@ -174,8 +196,25 @@ struct BusyButtonsDemoView: View {
     @MainActor
     private func appendAfterDelay(_ message: String, delay: Duration = .milliseconds(800)) async {
         try? await Task.sleep(for: delay)
-        log.insert(message, at: 0)
+        log.insert(BusyButtonsDemoLogEntry(message: message), at: 0)
     }
+
+    @MainActor
+    private func runInlineProgressDemo() async {
+        inlineProgress = nil
+        try? await Task.sleep(for: .milliseconds(2_650))
+        inlineProgress = 0
+        for step in 1...12 {
+            try? await Task.sleep(for: .milliseconds(180))
+            inlineProgress = Double(step) / 12
+        }
+        log.insert(BusyButtonsDemoLogEntry(message: "Inline progress completed"), at: 0)
+    }
+}
+
+private struct BusyButtonsDemoLogEntry: Identifiable {
+    let id = UUID()
+    let message: String
 }
 
 private enum BusyButtonsDemoError: LocalizedError {

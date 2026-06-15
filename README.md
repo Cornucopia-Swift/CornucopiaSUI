@@ -86,6 +86,9 @@ leave a visible trace for the user.
 
 - `BusyButton`, `GenericBusyButton` and `ConfirmationBusyButton`.
 - `CC_busyButton` for turning existing view content into an async busy button.
+  Pass a `Binding<Double?>` as `progress` to replace the activity indicator
+  with an inline progress bar; `nil` is the indeterminate state and values in
+  `0...1` render determinate progress.
 - `CC_confirmationDialog` for custom iOS confirmation surfaces with standard
   and glass looks.
 - `CC_slideOverCard` for SwiftUI-only iOS setup, pairing and permission cards
@@ -222,6 +225,35 @@ struct ClearCacheButton: View {
     private func clearCache() async {
         // perform long-running work
     }
+}
+```
+
+### Inline Busy Progress
+
+```swift
+import CornucopiaSUI
+import SwiftUI
+
+struct FirmwareButton: View {
+    @State private var isBusy = false
+    @State private var progress: Double?
+
+    var body: some View {
+        GenericBusyButton("Program ECU", isBusy: $isBusy, progress: $progress) {
+            progress = nil       // preparing: total work is not known yet
+            await negotiate()
+
+            progress = 0
+            for step in 1...12 {
+                await programBlock(step)
+                progress = Double(step) / 12
+            }
+        }
+        .buttonStyle(.borderedProminent)
+    }
+
+    private func negotiate() async {}
+    private func programBlock(_ step: Int) async {}
 }
 ```
 

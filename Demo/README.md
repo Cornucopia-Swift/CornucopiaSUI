@@ -16,9 +16,10 @@ Currently demonstrates:
   `VINTextField`.
 - Async controls and overlays: `BusyButton`, `GenericBusyButton`,
   `ConfirmationBusyButton`, `CC_confirmationDialog` and
-  `CC_notificationCapsule`, including Drops-inspired queueing, actions,
-  top/bottom placement, custom colors and standard/glass backgrounds. The
-  confirmation dialog screen also shows standard and glass surface variants.
+  `CC_notificationCapsule`, including inline busy progress with indeterminate
+  and determinate states, Drops-inspired queueing, actions, top/bottom
+  placement, custom colors and standard/glass backgrounds. The confirmation
+  dialog screen also shows standard and glass surface variants.
 - Slide-over setup cards: `CC_slideOverCard` with welcome, item-driven setup,
   pairing, glass, full-width, required-step and focused text-field variants.
 - Text and motion components: `MarqueeText`, `MarqueeScrollView`,

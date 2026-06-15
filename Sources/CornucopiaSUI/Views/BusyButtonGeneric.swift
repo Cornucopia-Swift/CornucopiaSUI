@@ -15,6 +15,9 @@ public enum BusyIndicatorStyle: Equatable, Sendable {
 public struct BusyButtonOptions {
     public var shrinkToCircle: Bool
     public var indicatorStyle: BusyIndicatorStyle
+    /// Optional inline progress source. When present, busy presentation uses a
+    /// linear progress bar; `nil` is indeterminate and `0...1` is determinate.
+    public var progress: Binding<Double?>?
     public var animation: Animation
     public var cancelTaskOnDisappear: Bool
     public var onError: ((Error) -> Void)?
@@ -22,12 +25,14 @@ public struct BusyButtonOptions {
     public init(
         shrinkToCircle: Bool = false,
         indicatorStyle: BusyIndicatorStyle = .modern,
+        progress: Binding<Double?>? = nil,
         animation: Animation = .easeInOut(duration: 0.3),
         cancelTaskOnDisappear: Bool = true,
         onError: ((Error) -> Void)? = nil
     ) {
         self.shrinkToCircle = shrinkToCircle
         self.indicatorStyle = indicatorStyle
+        self.progress = progress
         self.animation = animation
         self.cancelTaskOnDisappear = cancelTaskOnDisappear
         self.onError = onError
@@ -128,6 +133,74 @@ struct BusyIndicator: View {
     }
 }
 
+struct BusyProgressIndicator: View {
+    let progress: Binding<Double?>?
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var clampedProgress: Double? {
+        guard let value = progress?.wrappedValue else { return nil }
+        return min(max(value, 0), 1)
+    }
+
+    var body: some View {
+        if let clampedProgress {
+            GeometryReader { proxy in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Color.primary.opacity(0.18))
+
+                    Capsule()
+                        .fill(Color.accentColor)
+                        .frame(width: proxy.size.width * clampedProgress)
+                }
+            }
+            .frame(height: 4)
+            .accessibilityLabel("Busy")
+            .accessibilityValue(Text(clampedProgress, format: .percent.precision(.fractionLength(0))))
+        } else {
+            TimelineView(.animation) { timeline in
+                let phase = reduceMotion ? 0.5 : timeline.date.timeIntervalSinceReferenceDate
+                    .truncatingRemainder(dividingBy: 1.2) / 1.2
+
+                GeometryReader { proxy in
+                    let width = proxy.size.width
+                    let segmentWidth = max(width * 0.34, 16)
+                    let travel = max(width - segmentWidth, 0)
+                    let easedPhase = 0.5 - 0.5 * cos(phase * 2 * .pi)
+
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(Color.primary.opacity(0.18))
+
+                        Capsule()
+                            .fill(Color.accentColor)
+                            .frame(width: segmentWidth)
+                            .offset(x: travel * easedPhase)
+                    }
+                }
+                .frame(height: 4)
+            }
+            .frame(height: 4)
+            .accessibilityLabel("Busy")
+            .accessibilityValue("Progress unavailable")
+        }
+    }
+}
+
+struct BusyPresentation: View {
+    let options: BusyButtonOptions
+
+    var body: some View {
+        if options.progress != nil {
+            BusyProgressIndicator(progress: options.progress)
+        } else {
+            BusyIndicator(style: options.indicatorStyle)
+                .accessibilityLabel("Busy")
+        }
+    }
+}
+
 enum BusyButtonExecution {
     static func start(
         isBusy: Binding<Bool>,
@@ -207,6 +280,7 @@ public struct BusyButtonWrapper<Label: View>: View {
         role: ButtonRole? = nil,
         shrinkToCircle: Bool = false,
         indicatorStyle: BusyIndicatorStyle = .modern,
+        progress: Binding<Double?>? = nil,
         onError: ((Error) -> Void)? = nil,
         action: @escaping () async throws -> Void,
         @ViewBuilder label: @escaping () -> Label
@@ -216,6 +290,7 @@ public struct BusyButtonWrapper<Label: View>: View {
         self.options = BusyButtonOptions(
             shrinkToCircle: shrinkToCircle,
             indicatorStyle: indicatorStyle,
+            progress: progress,
             onError: onError
         )
         self.action = action
@@ -226,6 +301,7 @@ public struct BusyButtonWrapper<Label: View>: View {
         role: ButtonRole? = nil,
         shrinkToCircle: Bool = false,
         indicatorStyle: BusyIndicatorStyle = .modern,
+        progress: Binding<Double?>? = nil,
         onError: ((Error) -> Void)? = nil,
         action: @escaping () async throws -> Void,
         @ViewBuilder label: @escaping () -> Label
@@ -235,6 +311,7 @@ public struct BusyButtonWrapper<Label: View>: View {
         self.options = BusyButtonOptions(
             shrinkToCircle: shrinkToCircle,
             indicatorStyle: indicatorStyle,
+            progress: progress,
             onError: onError
         )
         self.action = action
@@ -309,6 +386,7 @@ public extension View {
         role: ButtonRole? = nil,
         shrinkToCircle: Bool = false,
         indicatorStyle: BusyIndicatorStyle = .modern,
+        progress: Binding<Double?>? = nil,
         onError: ((Error) -> Void)? = nil,
         action: @escaping () async throws -> Void
     ) -> some View {
@@ -317,6 +395,7 @@ public extension View {
             role: role,
             shrinkToCircle: shrinkToCircle,
             indicatorStyle: indicatorStyle,
+            progress: progress,
             onError: onError,
             action: action
         ) {
@@ -329,6 +408,7 @@ public extension View {
         role: ButtonRole? = nil,
         shrinkToCircle: Bool = false,
         indicatorStyle: BusyIndicatorStyle = .modern,
+        progress: Binding<Double?>? = nil,
         onError: ((Error) -> Void)? = nil,
         action: @escaping () async throws -> Void
     ) -> some View {
@@ -336,6 +416,7 @@ public extension View {
             role: role,
             shrinkToCircle: shrinkToCircle,
             indicatorStyle: indicatorStyle,
+            progress: progress,
             onError: onError,
             action: action
         ) {
@@ -408,6 +489,7 @@ public struct GenericBusyButton<Label: View>: View {
         role: ButtonRole? = nil,
         shrinkToCircle: Bool = false,
         indicatorStyle: BusyIndicatorStyle = .modern,
+        progress: Binding<Double?>? = nil,
         onError: ((Error) -> Void)? = nil,
         action: @escaping ActionFunc,
         @ViewBuilder label: @escaping () -> Label
@@ -417,6 +499,7 @@ public struct GenericBusyButton<Label: View>: View {
         self.options = BusyButtonOptions(
             shrinkToCircle: shrinkToCircle,
             indicatorStyle: indicatorStyle,
+            progress: progress,
             onError: onError
         )
         self.action = action
@@ -427,6 +510,7 @@ public struct GenericBusyButton<Label: View>: View {
         role: ButtonRole? = nil,
         shrinkToCircle: Bool = false,
         indicatorStyle: BusyIndicatorStyle = .modern,
+        progress: Binding<Double?>? = nil,
         onError: ((Error) -> Void)? = nil,
         action: @escaping ActionFunc,
         @ViewBuilder label: @escaping () -> Label
@@ -436,6 +520,7 @@ public struct GenericBusyButton<Label: View>: View {
         self.options = BusyButtonOptions(
             shrinkToCircle: shrinkToCircle,
             indicatorStyle: indicatorStyle,
+            progress: progress,
             onError: onError
         )
         self.action = action
@@ -478,6 +563,7 @@ public extension GenericBusyButton where Label == Text {
         role: ButtonRole? = nil,
         shrinkToCircle: Bool = false,
         indicatorStyle: BusyIndicatorStyle = .modern,
+        progress: Binding<Double?>? = nil,
         onError: ((Error) -> Void)? = nil,
         action: @escaping ActionFunc
     ) {
@@ -486,6 +572,7 @@ public extension GenericBusyButton where Label == Text {
             role: role,
             shrinkToCircle: shrinkToCircle,
             indicatorStyle: indicatorStyle,
+            progress: progress,
             onError: onError,
             action: action
         ) {
@@ -498,6 +585,7 @@ public extension GenericBusyButton where Label == Text {
         role: ButtonRole? = nil,
         shrinkToCircle: Bool = false,
         indicatorStyle: BusyIndicatorStyle = .modern,
+        progress: Binding<Double?>? = nil,
         onError: ((Error) -> Void)? = nil,
         action: @escaping ActionFunc
     ) {
@@ -505,6 +593,7 @@ public extension GenericBusyButton where Label == Text {
             role: role,
             shrinkToCircle: shrinkToCircle,
             indicatorStyle: indicatorStyle,
+            progress: progress,
             onError: onError,
             action: action
         ) {
@@ -555,8 +644,7 @@ private struct BusyButtonCore<Label: View>: View {
                 .accessibilityHidden(isBusy)
                 .overlay {
                     if isBusy {
-                        BusyIndicator(style: options.indicatorStyle)
-                            .accessibilityLabel("Busy")
+                        BusyPresentation(options: options)
                     }
                 }
                 .accessibilityValue(isBusy ? Text("Busy") : Text(""))

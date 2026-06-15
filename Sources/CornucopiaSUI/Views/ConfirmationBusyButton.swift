@@ -32,8 +32,7 @@ public struct ConfirmationBusyButton<Label: View>: View {
                 .accessibilityHidden(isBusy)
                 .overlay {
                     if isBusy {
-                        BusyIndicator(style: options.indicatorStyle)
-                            .accessibilityLabel("Busy")
+                        BusyPresentation(options: options)
                     }
                 }
         }

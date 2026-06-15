@@ -26,13 +26,14 @@ public struct BusyButton: View {
         isBusy: Binding<Bool>,
         title: String,
         indicatorStyle: BusyIndicatorStyle = .classic,
+        progress: Binding<Double?>? = nil,
         onError: ((Error) -> Void)? = nil,
         action: @escaping ActionFunc
     ) {
         self.init(
             isBusy: isBusy,
             title: title,
-            options: BusyButtonOptions(indicatorStyle: indicatorStyle, onError: onError),
+            options: BusyButtonOptions(indicatorStyle: indicatorStyle, progress: progress, onError: onError),
             action: action
         )
     }
