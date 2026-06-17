@@ -8,6 +8,7 @@ public actor AudioPlayer: NSObject {
 
     public static let `default`: AudioPlayer = .init()
     var players: [URL: AVAudioPlayer] = [:]
+    private var delegates: [URL: AudioPlayerDelegate] = [:]
 
     override private init() { }
 
@@ -21,20 +22,31 @@ public actor AudioPlayer: NSObject {
 
         guard !self.players.keys.contains(url) else { return }
         guard let player = try? AVAudioPlayer(contentsOf: url) else { return }
-        player.delegate = self
+        let delegate = AudioPlayerDelegate { [weak self] url in
+            Task { await self?.didFinishPlaying(url) }
+        }
+        player.delegate = delegate
+        self.delegates[url] = delegate
         self.players[url] = player
         player.play()
     }
 
     func didFinishPlaying(_ url: URL) {
         self.players[url] = nil
+        self.delegates[url] = nil
     }
 }
 
-extension AudioPlayer: AVAudioPlayerDelegate {
+private final class AudioPlayerDelegate: NSObject, AVAudioPlayerDelegate {
 
-    public nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+    private let didFinishPlaying: @Sendable (URL) -> Void
+
+    nonisolated init(didFinishPlaying: @escaping @Sendable (URL) -> Void) {
+        self.didFinishPlaying = didFinishPlaying
+    }
+
+    func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
         guard let url = player.url else { return }
-        Task { await self.didFinishPlaying(url) }
+        self.didFinishPlaying(url)
     }
 }
