@@ -1,18 +1,21 @@
 name: Swift
 
-# UIKit/SwiftUI library — can't `swift build` on a host; compile against an iOS
-# Simulator SDK via xcodebuild. Catches the ChartContent/Swift-6.2-style
-# regressions that only surface on the Apple UI toolchain.
+# UIKit/SwiftUI library that uses iOS 26 APIs (e.g. glassEffect) — needs Xcode 26+,
+# newer than the macos runner's default. Select the latest stable Xcode, then
+# compile against the iOS Simulator SDK via xcodebuild.
 
 on: [push]
 
 jobs:
   ios:
     name: Build (iOS Simulator)
-    runs-on: macos-latest
+    runs-on: macos-15
     steps:
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
       - uses: actions/checkout@v5
-      - name: Show Swift version
-        run: swift --version
+      - name: Show Xcode version
+        run: xcodebuild -version
       - name: Build
         run: xcodebuild -scheme CornucopiaSUI -destination 'generic/platform=iOS Simulator' build
