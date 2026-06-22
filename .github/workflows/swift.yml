@@ -1,0 +1,18 @@
+name: Swift
+
+# UIKit/SwiftUI library — can't `swift build` on a host; compile against an iOS
+# Simulator SDK via xcodebuild. Catches the ChartContent/Swift-6.2-style
+# regressions that only surface on the Apple UI toolchain.
+
+on: [push]
+
+jobs:
+  ios:
+    name: Build (iOS Simulator)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Show Swift version
+        run: swift --version
+      - name: Build
+        run: xcodebuild -scheme CornucopiaSUI -destination 'generic/platform=iOS Simulator' build
