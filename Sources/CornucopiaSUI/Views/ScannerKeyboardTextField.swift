@@ -147,6 +147,22 @@ public struct ScannerKeyboardTextField: View {
                 CodeScannerView(symbologies: symbologies) { [weak self] payload in
                     self?.accept(payload)
                 }
+                // The camera meets the text field with a hard edge otherwise,
+                // which reads as a video pasted onto the keyboard rather than as
+                // one input surface. Fading the top few points lets it emerge
+                // from underneath the field.
+                .mask(
+                    LinearGradient(
+                        stops: [
+                            .init(color: .clear, location: 0),
+                            .init(color: .black, location: 0.06),
+                            .init(color: .black, location: 1),
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .ignoresSafeArea()
             )
         }
 
