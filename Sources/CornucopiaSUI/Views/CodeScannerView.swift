@@ -74,6 +74,7 @@ public struct CodeScannerView: UIViewControllerRepresentable {
         coordinator: Coordinator
     ) {
         controller.stopScanning()
+        controller.delegate = nil
     }
 
     public func makeCoordinator() -> Coordinator { Coordinator(onScan: onScan) }

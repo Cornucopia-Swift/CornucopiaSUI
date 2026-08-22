@@ -98,7 +98,28 @@ public struct ScannerKeyboardTextField: View {
             }
         }
 
+        static func dismantleUIView(_ textField: UITextField, coordinator: Coordinator) {
+            coordinator.tearDown()
+        }
+
         func makeCoordinator() -> Coordinator { Coordinator() }
+    }
+
+    private struct ScannerInputContent: View {
+
+        let isPresented: Bool
+        let symbologies: [VNBarcodeSymbology]
+        let onScan: (String) -> Void
+
+        @ViewBuilder
+        var body: some View {
+            if isPresented {
+                CodeScannerView(symbologies: symbologies, onScan: onScan)
+                    .ignoresSafeArea()
+            } else {
+                Color.clear
+            }
+        }
     }
 
     @MainActor
@@ -118,11 +139,16 @@ public struct ScannerKeyboardTextField: View {
         var onScan: ((String) -> Void)?
         var didAutoFocus = false
 
-        private var hostingController: UIHostingController<AnyView>?
+        private var hostingController: UIHostingController<ScannerInputContent>?
+        private var symbologies: [VNBarcodeSymbology] = [.qr]
+        private var isScannerPresented = false
 
         override init() {
             super.init()
             inputView.backgroundColor = .clear
+            inputView.presentationDidChange = { [weak self] isPresented in
+                self?.setScannerPresented(isPresented)
+            }
             let height = inputView.heightAnchor.constraint(equalToConstant: Self.inputViewHeight)
             height.priority = .defaultHigh
             height.isActive = true
@@ -131,7 +157,9 @@ public struct ScannerKeyboardTextField: View {
         func install(symbologies: [VNBarcodeSymbology]) {
             guard hostingController == nil, CodeScannerView.isAvailable else { return }
 
-            let controller = UIHostingController(rootView: AnyView(EmptyView()))
+            self.symbologies = symbologies
+
+            let controller = UIHostingController(rootView: scannerContent(isPresented: false))
             controller.view.backgroundColor = .clear
             controller.view.translatesAutoresizingMaskIntoConstraints = false
             inputView.addSubview(controller.view)
@@ -142,28 +170,34 @@ public struct ScannerKeyboardTextField: View {
                 controller.view.bottomAnchor.constraint(equalTo: inputView.bottomAnchor),
             ])
             hostingController = controller
+            setScannerPresented(inputView.window != nil)
+        }
 
-            controller.rootView = AnyView(
-                CodeScannerView(symbologies: symbologies) { [weak self] payload in
-                    self?.accept(payload)
-                }
-                // The camera meets the text field with a hard edge otherwise,
-                // which reads as a video pasted onto the keyboard rather than as
-                // one input surface. Fading the top few points lets it emerge
-                // from underneath the field.
-                .mask(
-                    LinearGradient(
-                        stops: [
-                            .init(color: .clear, location: 0),
-                            .init(color: .black, location: 0.06),
-                            .init(color: .black, location: 1),
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                .ignoresSafeArea()
-            )
+        func tearDown() {
+            setScannerPresented(false)
+            inputView.presentationDidChange = nil
+            hostingController?.view.removeFromSuperview()
+            hostingController = nil
+            textField?.delegate = nil
+            textField?.inputView = nil
+            textField = nil
+            text = nil
+            onScan = nil
+        }
+
+        private func setScannerPresented(_ isPresented: Bool) {
+            guard isPresented != isScannerPresented else { return }
+            isScannerPresented = isPresented
+            hostingController?.rootView = scannerContent(isPresented: isPresented)
+        }
+
+        private func scannerContent(isPresented: Bool) -> ScannerInputContent {
+            ScannerInputContent(
+                isPresented: isPresented,
+                symbologies: symbologies
+            ) { [weak self] payload in
+                self?.accept(payload)
+            }
         }
 
         /// Fills the field and dismisses the scanner, because a code that has
@@ -171,6 +205,7 @@ public struct ScannerKeyboardTextField: View {
         /// second, conflicting scan.
         private func accept(_ payload: String) {
             guard let textField else { return }
+            setScannerPresented(false)
             textField.text = payload
             text?.wrappedValue = payload
             onScan?(payload)
@@ -182,7 +217,16 @@ public struct ScannerKeyboardTextField: View {
             text?.wrappedValue = sender.text ?? ""
         }
 
+        func textFieldDidBeginEditing(_ textField: UITextField) {
+            setScannerPresented(true)
+        }
+
+        func textFieldDidEndEditing(_ textField: UITextField) {
+            setScannerPresented(false)
+        }
+
         func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+            setScannerPresented(false)
             textField.resignFirstResponder()
             return true
         }
@@ -190,6 +234,14 @@ public struct ScannerKeyboardTextField: View {
 
     /// `UIInputView` rather than a plain view, so the system treats it as a
     /// keyboard: correct background, safe-area handling, and dismissal.
-    public final class ScannerInputView: UIInputView {}
+    public final class ScannerInputView: UIInputView {
+
+        var presentationDidChange: ((Bool) -> Void)?
+
+        public override func didMoveToWindow() {
+            super.didMoveToWindow()
+            presentationDidChange?(window != nil)
+        }
+    }
 }
 #endif
