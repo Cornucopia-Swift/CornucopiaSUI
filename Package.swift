@@ -16,6 +16,10 @@ let package = Package(
             name: "CornucopiaSUI",
             targets: ["CornucopiaSUI"]
         ),
+        .library(
+            name: "CornucopiaStoreKit",
+            targets: ["CornucopiaStoreKit"]
+        ),
     ],
     dependencies: [
         .package(url: "https://github.com/Cornucopia-Swift/CornucopiaCore", branch: "master"),
@@ -33,6 +37,9 @@ let package = Package(
             resources: [
                 .process("Resources"),
             ]
+        ),
+        .target(
+            name: "CornucopiaStoreKit"
         ),
         .testTarget(
             name: "CornucopiaSUITests",
