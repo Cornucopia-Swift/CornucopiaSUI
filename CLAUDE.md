@@ -44,6 +44,26 @@ examples use stable accessibility identifiers (`demo.row.<item>` and
 
 CornucopiaSUI is a SwiftUI utility library that extends the Cornucopia ecosystem. It provides reusable components and utilities for SwiftUI applications across Apple platforms.
 
+### Library Targets
+
+The package builds two products:
+
+- **CornucopiaSUI**: the SwiftUI utility library — everything else in this file.
+- **CornucopiaStoreKit** (`Sources/CornucopiaStoreKit/`): StoreKit 2 utilities,
+  currently `NonConsumablePurchaseManager`, a `@MainActor` `public final`
+  `ObservableObject` that owns the complete lifecycle of one non-consumable
+  in-app purchase: product loading, `purchase()`/`restorePurchases()`,
+  entitlement refresh, and a `Transaction.updates` observer for events that
+  arrive at runtime (other-device purchases, approved *Ask to Buy* requests,
+  refunds, revocations). Apps create one instance per product identifier and
+  keep it alive (e.g. as an `@StateObject`); only JWS-verified, non-revoked,
+  non-upgraded transactions unlock. The target deliberately ships no resources
+  or localization of its own — user-visible strings such as the initializer's
+  `productUnavailableMessage` are injected by the app. New code here follows
+  the ecosystem conventions: `final` classes, `@frozen` public enums, `///`
+  doc comments (with DocC cross-references) on the public API, and the
+  `FileName.swift`/`CornucopiaStoreKit` file header.
+
 ### Core Dependencies
 - **CornucopiaCore**: Parent library providing foundational types like `Logger`, `Protected` property wrapper, and `BusynessObserver` protocol
 

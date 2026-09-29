@@ -1,35 +1,82 @@
+//
+//  NonConsumablePurchaseManager.swift
+//  CornucopiaStoreKit
+//
+
 import Combine
 import Foundation
 import StoreKit
 
+/// An `ObservableObject` that manages the complete lifecycle of a single
+/// non-consumable in-app purchase.
+///
+/// The manager loads the product, runs purchases and restores, tracks the
+/// current entitlement, and observes transaction updates that arrive while
+/// the app runs — e.g. a purchase completed on another device, an approved
+/// *Ask to Buy* request, a refund, or a revocation. It starts working right
+/// from `init`: current entitlements are refreshed and the product is loaded
+/// in the background, so the UI can bind to ``status`` immediately and only
+/// needs to call ``purchase()`` or ``restorePurchases()`` in response to
+/// user actions.
+///
+/// - Important: Create one instance per product identifier and keep it alive
+///   for the lifetime of the scene (e.g. as an `@StateObject` or via the
+///   environment). Transaction updates are only observed while the manager
+///   exists; short-lived instances miss updates that arrive in between.
 @MainActor
-open class NonConsumablePurchaseManager: ObservableObject {
+public final class NonConsumablePurchaseManager: ObservableObject {
 
-    public enum Status: Equatable, Sendable {
+    /// Whether the user currently owns the managed product.
+    @frozen public enum Status: Equatable, Sendable {
+        /// The entitlement has not been determined yet — the initial state
+        /// until the first entitlement refresh completes.
         case unknown
+        /// The user does not own the product: it was never purchased, or the
+        /// entitlement was refunded, revoked, or upgraded away.
         case locked
+        /// The user owns the product.
         case unlocked
     }
 
-    public enum PurchaseOutcome: Equatable, Sendable {
+    /// The outcome of a ``purchase()`` attempt.
+    @frozen public enum PurchaseOutcome: Equatable, Sendable {
+        /// The purchase succeeded and the entitlement is now active.
         case purchased
+        /// The purchase needs approval (e.g. *Ask to Buy*) and is still pending;
+        /// the unlock typically arrives later through the transaction observer.
         case pending
+        /// The user dismissed the purchase sheet without buying.
         case userCancelled
+        /// The product could not be loaded from the store.
         case unavailable
+        /// The purchase failed — see ``lastErrorMessage`` for the reason.
         case failed
     }
 
+    /// The identifier of the managed product, as configured in App Store Connect.
     public let productIdentifier: String
 
+    /// The current entitlement state; drives feature gating in the UI.
     @Published public private(set) var status: Status = .unknown
+
+    /// The loaded store products; at most the single product matching
+    /// ``productIdentifier``.
     @Published public private(set) var products: [Product] = []
+
+    /// Whether a purchase or restore is currently talking to the store.
     @Published public private(set) var isProcessingPurchase = false
+
+    /// The most recent user-presentable error, or `nil` if the last operation
+    /// succeeded. Product-loading failures, purchase errors, and transaction
+    /// verification failures end up here.
     @Published public private(set) var lastErrorMessage: String?
 
+    /// The loaded store product for ``productIdentifier``, if available.
     public var product: Product? {
         products.first { $0.id == productIdentifier }
     }
 
+    /// Whether the user currently owns the product (`status == .unlocked`).
     public var isUnlocked: Bool {
         status == .unlocked
     }
@@ -38,6 +85,17 @@ open class NonConsumablePurchaseManager: ObservableObject {
     private var updatesTask: Task<Void, Never>?
     private var bootstrapTask: Task<Void, Never>?
 
+    /// Creates a manager for the given product and starts observing the store.
+    ///
+    /// Initialization kicks off two background tasks — refreshing the current
+    /// entitlements and loading the product — and installs a listener for
+    /// transaction updates. All of them are cancelled when the manager is
+    /// deallocated.
+    ///
+    /// - Parameters:
+    ///   - productIdentifier: The identifier of the non-consumable product to manage.
+    ///   - productUnavailableMessage: User-presentable message published through
+    ///     ``lastErrorMessage`` when the product cannot be found in the store.
     public init(productIdentifier: String, productUnavailableMessage: String) {
         self.productIdentifier = productIdentifier
         self.productUnavailableMessage = productUnavailableMessage
@@ -57,11 +115,18 @@ open class NonConsumablePurchaseManager: ObservableObject {
         bootstrapTask?.cancel()
     }
 
+    /// Loads the product from the store unless products are already loaded.
     public func loadProductsIfNeeded() async {
         guard products.isEmpty else { return }
         await loadProducts()
     }
 
+    /// (Re-)loads the managed product from the store.
+    ///
+    /// Only products matching ``productIdentifier`` of type `.nonConsumable` are
+    /// kept. When the store returns no such product, ``lastErrorMessage`` is set
+    /// to the manager's unavailable message; fetch errors surface their localized
+    /// description instead.
     public func loadProducts() async {
         do {
             let fetched = try await Product.products(for: [productIdentifier])
@@ -74,6 +139,13 @@ open class NonConsumablePurchaseManager: ObservableObject {
         }
     }
 
+    /// Purchases the managed product, loading it on demand when necessary.
+    ///
+    /// Only transactions that pass StoreKit's signature verification unlock the
+    /// product; successful transactions are finished automatically. A `.pending`
+    /// outcome means *Ask to Buy* approval is still outstanding — the unlock
+    /// then arrives later through the transaction observer. The call fails fast
+    /// while another purchase or restore is already in flight.
     @discardableResult
     public func purchase() async -> PurchaseOutcome {
         guard !isProcessingPurchase else { return .failed }
@@ -111,6 +183,11 @@ open class NonConsumablePurchaseManager: ObservableObject {
         }
     }
 
+    /// Restores previous purchases through the user's App Store account.
+    ///
+    /// Calls `AppStore.sync()`, which may prompt for the Apple ID, and then
+    /// refreshes the entitlements. Shares the ``isProcessingPurchase`` flag
+    /// with ``purchase()``, so it does nothing while an operation is in flight.
     public func restorePurchases() async {
         guard !isProcessingPurchase else { return }
 
@@ -126,6 +203,11 @@ open class NonConsumablePurchaseManager: ObservableObject {
         }
     }
 
+    /// Refreshes the entitlement state from `Transaction.currentEntitlements`.
+    ///
+    /// The product counts as unlocked only when a verified transaction for
+    /// ``productIdentifier`` exists that is neither revoked nor upgraded away.
+    /// Failing verifications surface their error through ``lastErrorMessage``.
     public func refreshEntitlements() async {
         var isEntitled = false
         var verificationError: Error?
